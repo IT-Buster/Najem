@@ -1,0 +1,71 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import csrf %}
+{% block title %}Podatek {{ rok }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Podatek od najmu {{ rok }}</h1>
+    <p class="muted">Ryczałt: {{ p.stawka|liczba(1) }}% do {{ p.prog|zl }} przychodu w roku, powyżej {{ p.stawka2|liczba(1) }}% ·
+      <a href="{{ url_for('zarzadca.ustawienia') }}">zmień</a></p></div>
+</div>
+
+<form class="toolbar" method="get">
+  <select name="rok" aria-label="Rok" onchange="this.form.submit()">
+    {% for r in lata %}<option value="{{ r }}" {% if r == rok %}selected{% endif %}>{{ r }}</option>{% endfor %}
+  </select>
+</form>
+
+<div class="stats">
+  <div class="stat"><span>Przychód {{ rok }}</span><strong>{{ suma.przychod|zl }}</strong><small class="muted">czynsz{{ ' + ryczałt za opłaty' if p.ryczalt }}</small></div>
+  <div class="stat"><span>Podatek należny</span><strong>{{ suma.podatek|zl }}</strong><small class="muted">wpłacono {{ suma.wplacono|zl }}</small></div>
+  <div class="stat"><span>Wydatki</span><strong>{{ suma.wydatki|zl }}</strong><small class="muted"><a href="{{ url_for('zarzadca.wydatki', rok=rok) }}">rejestr wydatków</a></small></div>
+  <div class="stat stat-accent"><span>Wynik roku</span><strong>{{ suma.wynik|zl }}</strong><small class="muted">przychód − podatek − wydatki</small></div>
+</div>
+
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Miesiąc</th><th class="num">Przychód</th><th class="num">Narastająco</th><th class="num">Podatek</th><th>Wpłata do US</th></tr></thead>
+  <tbody>{% for m in miesiace %}
+    <tr>
+      <td data-label="Miesiąc"><strong>{{ m.nazwa|capitalize }}</strong>
+        {% if m.stan == 'zaplacony' %}<span class="badge badge-aktywna">zapłacony</span>
+        {% elif m.stan == 'po_terminie' %}<span class="badge badge-konczy">po terminie</span>
+        {% elif m.stan == 'do_zaplaty' %}<span class="badge badge-przyszla">do zapłaty</span>{% endif %}
+        {% if m.prog %}<span class="badge badge-konczy">przekroczony próg</span>{% endif %}</td>
+      <td data-label="Przychód" class="num">{{ m.przychod|zl if m.przychod else '—' }}</td>
+      <td data-label="Narastająco" class="num">{{ m.narast|zl if m.narast else '—' }}</td>
+      <td data-label="Podatek" class="num"><strong>{{ m.podatek|zl if m.przychod or m.podatek else '—' }}</strong>
+        {% if m.podatek %}<span class="line muted small">termin {{ m.termin|data }}</span>{% endif %}</td>
+      <td data-label="Wpłata do US">
+        {% for w in m.wplaty %}<span class="line">{{ w.kwota|zl }} · {{ w.data|data }}
+          <form method="post" action="{{ url_for('zarzadca.podatek_wplata_usun', wid=w.id) }}" class="inline" onsubmit="return confirm('Usunąć tę wpłatę?')">
+            {{ csrf() }}<button class="linkbtn danger small" type="submit">usuń</button></form></span>{% endfor %}
+        {% if m.podatek > m.wplacono %}
+        <details class="pay">
+          <summary class="small">+ zapisz wpłatę</summary>
+          <form method="post" action="{{ url_for('zarzadca.podatek_wplata') }}" class="pay-form">
+            {{ csrf() }}<input type="hidden" name="okres" value="{{ m.okres }}">
+            <input name="kwota" value="{{ (m.podatek - m.wplacono)|zl_input }}" inputmode="decimal" aria-label="Kwota">
+            <input name="data" type="date" value="{{ dzis if dzis <= m.termin else m.termin }}" aria-label="Data wpłaty">
+            <button class="btn btn-primary btn-sm" type="submit">Zapisz</button>
+          </form>
+        </details>
+        {% elif not m.wplaty %}<span class="muted">—</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+    <tr class="row-sum"><td data-label="Rok"><strong>Razem {{ rok }}</strong></td><td data-label="Przychód" class="num"><strong>{{ suma.przychod|zl }}</strong></td>
+      <td></td><td data-label="Podatek" class="num"><strong>{{ suma.podatek|zl }}</strong></td><td data-label="Wpłacono">{{ suma.wplacono|zl }}</td></tr>
+  </tbody>
+</table></div>
+
+{% if wg_lokali %}
+<section class="panel-box">
+  <h2>Przychód według lokali</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Lokal</th><th class="num">Przychód {{ rok }}</th></tr></thead>
+    <tbody>{% for n, kw in wg_lokali %}<tr><td data-label="Lokal">{{ n }}</td><td data-label="Przychód" class="num">{{ kw|zl }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+
+<p class="muted small">Przychód miesiąca to czynsz z wystawionych zawiadomień za ten miesiąc{{ ' oraz ryczałt za opłaty z umów' if p.ryczalt }}; media rozliczane według zużycia nie są przychodem. Podatek za miesiąc = podatek od przychodu narastająco od początku roku minus podatek za wcześniejsze miesiące, zaokrąglony do pełnych złotych; płatny do 20. dnia następnego miesiąca (za grudzień — do 20 stycznia). Zestawienie jest pomocnicze — sprawdź je przed złożeniem PIT-28.</p>
+{% endblock %}

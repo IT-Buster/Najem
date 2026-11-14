@@ -1,0 +1,59 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import field, select, csrf %}
+{% block title %}Wydatki {{ rok }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Wydatki {{ rok }}</h1><p class="muted">Zakupy, naprawy i usługi · razem {{ suma|zl }}</p></div>
+</div>
+
+<details class="panel-box add-box" {% if f.errors %}open{% endif %}>
+  <summary>+ Dodaj wydatek</summary>
+  <form method="post" class="form" novalidate autocomplete="off">
+    {{ csrf() }}
+    <div class="form-grid">
+      {{ field(f, "data", "Data", type="date", attrs="required") }}
+      {{ field(f, "opis", "Opis", hint="np. zawór termostatyczny", attrs="required") }}
+      {{ field(f, "kwota", "Kwota brutto (zł)", attrs='inputmode="decimal" required') }}
+      {{ select(f, "kategoria", "Kategoria", kategorie) }}
+      {{ field(f, "firma", "Sklep / firma") }}
+      {{ field(f, "dokument", "Nr faktury / paragonu") }}
+      {{ select(f, "budynek_id", "Budynek", budynki_opcje, hint="Opcjonalnie") }}
+      {{ select(f, "lokal_id", "Lokal", lokale_opcje, hint="Opcjonalnie") }}
+    </div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Dodaj wydatek</button></div>
+  </form>
+</details>
+
+<form class="toolbar" method="get">
+  <select name="rok" aria-label="Rok" onchange="this.form.submit()">
+    {% for r in lata %}<option value="{{ r }}" {% if r == rok %}selected{% endif %}>{{ r }}</option>{% endfor %}
+  </select>
+  <a href="{{ url_for('zarzadca.podatek', rok=rok) }}">Podatek i bilans {{ rok }}</a>
+</form>
+
+{% if kat %}
+<div class="stats">
+  {% for k, kw in kat %}<div class="stat"><span>{{ k|capitalize }}</span><strong>{{ kw|zl }}</strong></div>{% endfor %}
+</div>
+{% endif %}
+
+{% if rows %}
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Wydatek</th><th>Data</th><th>Dotyczy</th><th class="num">Kwota</th><th></th></tr></thead>
+  <tbody>{% for w in rows %}
+    <tr>
+      <td data-label="Wydatek"><strong>{{ w.opis }}</strong><span class="line muted small">{{ w.kategoria or 'inne' }}{% if w.firma %} · {{ w.firma }}{% endif %}{% if w.dokument %} · {{ w.dokument }}{% endif %}</span></td>
+      <td data-label="Data">{{ w.data|data }}</td>
+      <td data-label="Dotyczy">{{ w.lokal or w.budynek or '—' }}</td>
+      <td data-label="Kwota" class="num">{{ w.kwota|zl }}</td>
+      <td data-label="">
+        <form method="post" action="{{ url_for('zarzadca.wydatek_usun', wid=w.id) }}" class="inline" onsubmit="return confirm('Usunąć ten wydatek?')">
+          {{ csrf() }}<button class="linkbtn danger" type="submit">Usuń</button></form></td>
+    </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}
+<div class="placeholder"><strong>Brak wydatków w {{ rok }}</strong><span>Dodaj pierwszy wydatek.</span></div>
+{% endif %}
+<p class="muted small">Przy ryczałcie wydatki nie obniżają podatku — rejestr służy do kontroli opłacalności najmu (bilans roku na stronie Podatek).</p>
+{% endblock %}

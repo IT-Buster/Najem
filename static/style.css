@@ -295,3 +295,7 @@ input.suggested, select.suggested { animation: suggest 1.2s ease-out; }
 }
 label.check { flex-direction: row; align-items: center; gap: .5rem; font-weight: 400; padding: .3rem 0; }
 @media (min-width: 761px) { .month-nav select { flex: 0 1 16rem; } }
+details.pay summary { cursor: pointer; color: var(--accent); }
+.pay-form { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .4rem; }
+.pay-form input { width: 8.5rem; padding: .4rem .5rem; }
+.pay-form input[type=date] { width: 10rem; }

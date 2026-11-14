@@ -163,6 +163,30 @@ CREATE TABLE IF NOT EXISTS wymiany (
     UNIQUE (lokal_id, rodzaj, okres)
 );
 
+-- Wpłaty podatku (ryczałt od najmu) do urzędu skarbowego; okres = miesiąc przychodu (RRRR-MM)
+CREATE TABLE IF NOT EXISTS podatek_wplaty (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    okres      TEXT NOT NULL,
+    data       TEXT NOT NULL,
+    kwota      INTEGER NOT NULL,     -- grosze
+    uwagi      TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Wydatki właściciela: zakupy, naprawy, usługi (rejestr; przy ryczałcie nie obniżają podatku)
+CREATE TABLE IF NOT EXISTS wydatki (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    data        TEXT NOT NULL,
+    opis        TEXT NOT NULL,
+    firma       TEXT,
+    dokument    TEXT,                -- nr faktury / paragonu
+    kwota       INTEGER NOT NULL,    -- grosze brutto
+    kategoria   TEXT,
+    budynek_id  INTEGER REFERENCES budynki(id),
+    lokal_id    INTEGER REFERENCES lokale(id),
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Faktury dostawców; okres = miesiąc zużycia (RRRR-MM); kwoty brutto w groszach
 CREATE TABLE IF NOT EXISTS faktury (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -576,6 +600,7 @@ init_db()
 from admin import bp as admin_bp  # noqa: E402  (korzysta z helperów powyżej)
 import rozliczenia  # noqa: E402,F401  (dokłada widoki do panelu zarządcy i klienta)
 import budynki  # noqa: E402,F401
+import podatek  # noqa: E402,F401
 app.register_blueprint(admin_bp)
 
 if __name__ == "__main__":

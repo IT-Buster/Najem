@@ -116,6 +116,11 @@ USTAWIENIA = [
     ("smieci_4", "Wywóz nieczystości – 4 osoby", "", "Puste = stawka za 1 osobę × 4", "money"),
     ("smieci_5", "Wywóz nieczystości – 5 i więcej osób", "", "Puste = stawka za 1 osobę × liczba osób", "money"),
     ("rachunek", "Rachunek bankowy", "", "Drukowany na zawiadomieniu", "text"),
+    ("podatek_stawka", "Stawka ryczałtu (%)", "8.5", "Najem prywatny: 8,5% do progu", "number"),
+    ("podatek_prog", "Próg rocznego przychodu (zł)", "10000000", "Powyżej progu stawka podwyższona", "money"),
+    ("podatek_stawka2", "Stawka powyżej progu (%)", "12.5", "", "number"),
+    ("podatek_ryczalt_oplat", "Wliczaj ryczałt za opłaty („Opłaty” w umowie) do przychodu", "1",
+     "Media rozliczane wg zużycia nie są przychodem; ryczałt — zwykle jest", "bool"),
 ]
 
 
@@ -126,7 +131,7 @@ def ust():
         v = zapisane.get(k, dom)
         if v in (None, ""):
             out[k] = None
-        elif typ in ("money", "int"):
+        elif typ in ("money", "int", "bool"):
             out[k] = int(v)
         elif typ == "number":
             out[k] = Decimal(v)
@@ -877,6 +882,8 @@ def ustawienia():
             elif typ == "int":
                 v = f.number(k, label, 1, 1000)
                 zapis[k] = "" if v is None else str(v)
+            elif typ == "bool":
+                zapis[k] = "1" if f.raw.get(k) else "0"
             else:
                 zapis[k] = f.text(k, label, max_len=200) or ""
         if f.ok:
@@ -891,6 +898,8 @@ def ustawienia():
     for k, _, _, _, typ in USTAWIENIA:
         v = s[k]
         raw[k] = "" if v is None else zl_input(v) if typ == "money" else str(v).replace(".", ",")
+        if typ == "bool":
+            raw[k] = "1" if v else ""
     return render_template("admin/ustawienia.html", active="ustawienia", f=Form(raw), pola=USTAWIENIA)
 
 

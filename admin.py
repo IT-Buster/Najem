@@ -22,6 +22,8 @@ ADMIN_MENU = [
     ("liczniki", "Odczyty liczników"),
     ("faktury", "Faktury mediów"),
     ("wplaty", "Wpłaty"),
+    ("podatek", "Podatek"),
+    ("wydatki", "Wydatki"),
     ("ustawienia", "Ustawienia"),
 ]
 RODZAJE_LOKALI = ["mieszkanie", "kawalerka", "pokój", "dom", "lokal użytkowy", "garaż / miejsce postojowe"]
