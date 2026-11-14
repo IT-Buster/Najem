@@ -6,8 +6,8 @@ Użycie:
     python seed_demo.py ścieżka/do/bazy.sqlite3
     NAJEM_DB=demo/najem-demo.sqlite3 gunicorn app:app   # uruchomienie na bazie demo
 
-Konta (hasło dla wszystkich: demo1234): admin (zarządca), jan.kowalski, anna.nowak,
-piotr.wisniewski, ewa.zielinska (najemcy).
+Konta (hasło dla wszystkich: demo1234): admin (zarządca), jan.kowalski, marta.zawadzka,
+piotr.sikorski, ewa.zielinska (najemcy).
 """
 import os
 import random
@@ -30,8 +30,8 @@ random.seed(2026)
 HASLO = "demo1234"
 init_db()
 create_user("admin", HASLO, "Administrator Demo", "zarzadca")
-for login, imie in [("jan.kowalski", "Jan Kowalski"), ("anna.nowak", "Anna Nowak"),
-                    ("piotr.wisniewski", "Piotr Wiśniewski"), ("ewa.zielinska", "Ewa Zielińska")]:
+for login, imie in [("jan.kowalski", "Jan Kowalski"), ("marta.zawadzka", "Marta Zawadzka"),
+                    ("piotr.sikorski", "Piotr Sikorski"), ("ewa.zielinska", "Ewa Zielińska")]:
     create_user(login, HASLO, imie, "klient")
 
 db = sqlite3.connect(cel)
@@ -68,10 +68,10 @@ umowy = {
     "1": ins("umowy", numer="NZ/2024/001", lokal_id=lok["1"], najemca_id=uid["jan.kowalski"], rodzaj="najem zwykły",
              data_zawarcia="2024-03-20", data_od="2024-04-01", czynsz=150000, oplaty=0, kaucja=300000,
              dzien_platnosci=10, wypowiedzenie="1 miesiąc", liczba_osob=1),
-    "2": ins("umowy", numer="NO/2025/001", lokal_id=lok["2"], najemca_id=uid["anna.nowak"], rodzaj="najem okazjonalny",
+    "2": ins("umowy", numer="NO/2025/001", lokal_id=lok["2"], najemca_id=uid["marta.zawadzka"], rodzaj="najem okazjonalny",
              data_zawarcia="2025-01-15", data_od="2025-02-01", data_do=R.przesun(biez, 14) + "-28", czynsz=180000,
              oplaty=0, kaucja=360000, dzien_platnosci=10, wypowiedzenie="3 miesiące", liczba_osob=2),
-    "3": ins("umowy", numer="NZ/2023/002", lokal_id=lok["3"], najemca_id=uid["piotr.wisniewski"], rodzaj="najem zwykły",
+    "3": ins("umowy", numer="NZ/2023/002", lokal_id=lok["3"], najemca_id=uid["piotr.sikorski"], rodzaj="najem zwykły",
              data_zawarcia="2023-08-25", data_od="2023-09-01", czynsz=120000, oplaty=0, kaucja=240000,
              dzien_platnosci=5, wypowiedzenie="1 miesiąc", liczba_osob=3),
 }
@@ -132,4 +132,4 @@ with app.test_request_context():
         baza.commit()
         okres = R.nastepny(okres)
 
-print(f"Gotowe: {cel}\nKonta: admin / jan.kowalski / anna.nowak / piotr.wisniewski / ewa.zielinska, hasło: {HASLO}")
+print(f"Gotowe: {cel}\nKonta: admin / jan.kowalski / marta.zawadzka / piotr.sikorski / ewa.zielinska, hasło: {HASLO}")

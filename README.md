@@ -45,7 +45,7 @@ python3 -m venv .venv
 NAJEM_DB=demo/najem-demo.sqlite3 NAJEM_INSECURE_COOKIES=1 .venv/bin/flask --app app run
 ```
 
-Konta demo (hasło `demo1234`): `admin` (zarządca), `jan.kowalski`, `anna.nowak`, `piotr.wisniewski`, `ewa.zielinska`.
+Konta demo (hasło `demo1234`): `admin` (zarządca), `jan.kowalski`, `marta.zawadzka`, `piotr.sikorski`, `ewa.zielinska`.
 
 Własna, pusta baza: `.venv/bin/flask --app app init-db`, a potem `.venv/bin/flask --app app create-user`
 (rola `zarzadca`). Domyślnie baza leży w `instance/najem.sqlite3`.
