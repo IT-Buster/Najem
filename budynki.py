@@ -30,6 +30,8 @@ def _form(f):
     if kod and not re.fullmatch(r"\d{2}-\d{3}", kod):
         f.error("kod", "Kod pocztowy w formacie 00-000.")
     f.text("miasto", "Miasto", max_len=100)
+    f.text("nr_wodomierza", "Nr wodomierza głównego", max_len=50)
+    f.text("nr_cieplomierza", "Nr ciepłomierza głównego", max_len=50)
     for k, label in POLA_STAWEK:
         pusty = not (f.raw.get(k) or "").strip()
         v = f.money(k, label, required=False)

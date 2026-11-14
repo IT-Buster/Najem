@@ -46,6 +46,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.environ.get("NAJEM_INSECURE_COOKIES") != "1",
+    MAX_CONTENT_LENGTH=12 * 1024 * 1024,      # zdjęcia liczników
 )
 
 
@@ -163,6 +164,36 @@ CREATE TABLE IF NOT EXISTS wymiany (
     UNIQUE (lokal_id, rodzaj, okres)
 );
 
+-- Pomiary liczników z dowolnego źródła (telemetria, najemca, zarządca) z dokładnym czasem.
+-- Odczyt miesiąca (tabela odczyty) = pomiar najbliższy końca poprzedniego miesiąca (ostatni dzień, 23:59).
+-- lokal_id < 0 → licznik główny budynku o id = −lokal_id.
+CREATE TABLE IF NOT EXISTS pomiary (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    lokal_id     INTEGER NOT NULL,
+    rodzaj       TEXT NOT NULL CHECK (rodzaj IN ('woda', 'cieplo')),
+    wartosc      REAL NOT NULL,
+    czas         TEXT NOT NULL,                 -- RRRR-MM-DDTGG:MM:SS (czas lokalny)
+    zrodlo       TEXT NOT NULL CHECK (zrodlo IN ('telemetria', 'najemca', 'zarzadca')),
+    status       TEXT NOT NULL DEFAULT 'zatwierdzony' CHECK (status IN ('oczekuje', 'zatwierdzony', 'odrzucony')),
+    user_id      INTEGER REFERENCES users(id),
+    urzadzenie_id INTEGER,
+    zdjecie      TEXT,                          -- nazwa pliku w instance/zdjecia
+    uwagi        TEXT,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS ix_pomiary_lokal ON pomiary(lokal_id, rodzaj, czas);
+
+-- Urządzenia telemetrii: token (tylko skrót SHA-256) do API /api/pomiary
+CREATE TABLE IF NOT EXISTS urzadzenia (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    nazwa       TEXT NOT NULL,
+    token_hash  TEXT NOT NULL UNIQUE,
+    budynek_id  INTEGER REFERENCES budynki(id),
+    aktywne     INTEGER NOT NULL DEFAULT 1,
+    ostatnio    TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Wpłaty podatku (ryczałt od najmu) do urzędu skarbowego; okres = miesiąc przychodu (RRRR-MM)
 CREATE TABLE IF NOT EXISTS podatek_wplaty (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -273,7 +304,10 @@ def init_db():
                                 ("lokale", "nr_cieplomierza", "TEXT"),
                                 ("umowy", "liczba_osob", "INTEGER NOT NULL DEFAULT 1"),
                                 ("lokale", "budynek_id", "INTEGER REFERENCES budynki(id)"),
-                                ("faktury", "budynek_id", "INTEGER REFERENCES budynki(id)")]:
+                                ("faktury", "budynek_id", "INTEGER REFERENCES budynki(id)"),
+                                ("odczyty", "zrodlo", "TEXT"),          # NULL = wpisany ręcznie, 'pomiar' = z pomiarów
+                                ("budynki", "nr_wodomierza", "TEXT"),   # liczniki główne budynku
+                                ("budynki", "nr_cieplomierza", "TEXT")]:
             if col not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
                 db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         # dane sprzed budynków: przy jednym budynku przypisz mu faktury i liczniki główne (dawniej lokal_id = 0)
@@ -601,6 +635,7 @@ from admin import bp as admin_bp  # noqa: E402  (korzysta z helperów powyżej)
 import rozliczenia  # noqa: E402,F401  (dokłada widoki do panelu zarządcy i klienta)
 import budynki  # noqa: E402,F401
 import podatek  # noqa: E402,F401
+import pomiary  # noqa: E402,F401
 app.register_blueprint(admin_bp)
 
 if __name__ == "__main__":

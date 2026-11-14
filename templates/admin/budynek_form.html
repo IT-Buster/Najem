@@ -20,6 +20,8 @@
     {{ field(f, "ulica", "Ulica i numer") }}
     {{ field(f, "kod", "Kod pocztowy", hint="00-000", attrs='inputmode="numeric" maxlength=6') }}
     {{ field(f, "miasto", "Miasto") }}
+    {{ field(f, "nr_wodomierza", "Nr wodomierza głównego", hint="Do telemetrii") }}
+    {{ field(f, "nr_cieplomierza", "Nr ciepłomierza głównego", hint="Do telemetrii") }}
   </div>
   <h2>Stawki budynku</h2>
   <p class="muted small">Puste pole = stawka domyślna z <a href="{{ url_for('zarzadca.ustawienia') }}">Ustawień</a> (podana w podpowiedzi).</p>

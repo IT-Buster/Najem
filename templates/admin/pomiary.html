@@ -1,0 +1,105 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import csrf %}
+{% block title %}Pomiary i telemetria{% endblock %}
+{% macro jedn(p) %}{{ 'GJ' if p.rodzaj == 'cieplo' else 'm³' }}{% endmacro %}
+{% macro mj(p) %}{{ 3 if p.rodzaj == 'cieplo' else 2 }}{% endmacro %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('zarzadca.liczniki', b=b.id) }}">Odczyty liczników</a> / pomiary</nav>
+<div class="page-head">
+  <div><h1>Pomiary i telemetria</h1>
+    <p class="muted">{{ b.nazwa }} · odczyt miesiąca = pomiar najbliższy ostatniego dnia miesiąca, 23:59 (±7 dni)</p></div>
+</div>
+{% if budynki|length > 1 %}
+<form class="toolbar" method="get">
+  <select name="b" aria-label="Budynek" onchange="this.form.submit()">
+    {% for x in budynki %}<option value="{{ x.id }}" {% if x.id == b.id %}selected{% endif %}>{{ x.nazwa }}</option>{% endfor %}
+  </select>
+</form>
+{% endif %}
+
+<section class="panel-box">
+  <h2>Odczyty od najemców do zatwierdzenia{% if oczekujace %} ({{ oczekujace|length }}){% endif %}</h2>
+  {% if oczekujace %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Lokal</th><th>Kiedy / kto</th><th class="num">Stan</th><th class="num">Zużycie</th><th></th></tr></thead>
+    <tbody>{% for o in oczekujace %}{% set p = o.p %}
+      <tr>
+        <td data-label="Lokal"><strong>{{ o.nazwa }}</strong><span class="line muted small">{{ 'wodomierz' if p.rodzaj == 'woda' else 'ciepłomierz' }} · {% if o.w_oknie %}odczyt za {{ o.okres|okres }}{% else %}połowa miesiąca — tylko do historii{% endif %}</span>
+          {% if p.zdjecie %}<a href="{{ url_for('zdjecie', pid=p.id) }}" target="_blank"><img class="thumb" src="{{ url_for('zdjecie', pid=p.id) }}" alt="Zdjęcie licznika"></a>{% endif %}</td>
+        <td data-label="Kiedy">{{ p.czas|data }} {{ p.czas[11:16] }}<span class="line muted small">{{ p.kto or '—' }}{% if p.uwagi %} · „{{ p.uwagi }}”{% endif %}</span></td>
+        <td data-label="Stan" class="num"><strong>{{ p.wartosc|liczba(mj(p)|int) }} {{ jedn(p) }}</strong>
+          <span class="line muted small">poprz. miesiąc: {{ o.poprz|liczba(mj(p)|int) if o.poprz is not none else '—' }}</span></td>
+        <td data-label="Zużycie" class="num">{% if o.poprz is not none %}{% set z = p.wartosc - o.poprz %}
+          <span class="{{ 'neg' if z < 0 }}">{{ z|liczba(mj(p)|int) }} {{ jedn(p) }}</span>{% if z < 0 %}<span class="line small neg">mniej niż poprzednio</span>{% endif %}{% else %}—{% endif %}</td>
+        <td data-label="">
+          <form method="post" action="{{ url_for('zarzadca.pomiar_decyzja', pid=p.id, decyzja='zatwierdz') }}" class="inline">{{ csrf() }}<input type="hidden" name="b" value="{{ b.id }}"><button class="btn btn-primary btn-sm" type="submit">Zatwierdź</button></form>
+          <form method="post" action="{{ url_for('zarzadca.pomiar_decyzja', pid=p.id, decyzja='odrzuc') }}" class="inline">{{ csrf() }}<input type="hidden" name="b" value="{{ b.id }}"><button class="btn btn-danger btn-sm" type="submit">Odrzuć</button></form>
+        </td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">Brak odczytów czekających na zatwierdzenie.</p>{% endif %}
+</section>
+
+<section class="panel-box">
+  <h2>Ostatnie pomiary</h2>
+  {% if ostatnie %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Licznik</th><th>Czas</th><th>Źródło</th><th class="num">Stan</th><th>Status</th></tr></thead>
+    <tbody>{% for p in ostatnie %}
+      <tr><td data-label="Licznik"><strong>{{ nazwy.get(p.lokal_id, p.lokal_id) }}</strong><span class="line muted small">{{ 'wodomierz' if p.rodzaj == 'woda' else 'ciepłomierz' }}</span></td>
+          <td data-label="Czas">{{ p.czas|data }} {{ p.czas[11:16] }}</td>
+          <td data-label="Źródło">{{ {'telemetria': 'telemetria', 'najemca': 'najemca', 'zarzadca': 'zarządca'}[p.zrodlo] }}<span class="line muted small">{{ p.urzadzenie or p.kto or '' }}</span></td>
+          <td data-label="Stan" class="num">{{ p.wartosc|liczba(mj(p)|int) }} {{ jedn(p) }}</td>
+          <td data-label="Status">{% if p.status == 'oczekuje' %}<span class="badge badge-przyszla">czeka</span>{% elif p.status == 'zatwierdzony' %}<span class="badge badge-aktywna">przyjęty</span>{% else %}<span class="badge badge-zakonczona">odrzucony</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">Brak pomiarów. Pojawią się, gdy najemcy podadzą odczyty albo urządzenia zaczną wysyłać dane.</p>{% endif %}
+  <form method="post" action="{{ url_for('zarzadca.pomiary_przenies') }}" class="inline" style="margin-top:1rem">
+    {{ csrf() }}<input type="hidden" name="b" value="{{ b.id }}">
+    <input type="month" name="okres" value="{{ biezacy_okres }}" aria-label="Miesiąc odczytu" required>
+    <button class="btn btn-ghost btn-sm" type="submit">Przenieś pomiary do odczytów</button>
+    <span class="muted small">Dzieje się też samo przy otwieraniu odczytów i rozliczeń. Ręcznie wpisanych odczytów nie nadpisuje.</span>
+  </form>
+</section>
+
+<section class="panel-box">
+  <h2>Urządzenia telemetrii</h2>
+  {% if urzadzenia %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Urządzenie</th><th>Budynek</th><th>Ostatnio</th><th></th></tr></thead>
+    <tbody>{% for d in urzadzenia %}
+      <tr><td data-label="Urządzenie"><strong>{{ d.nazwa }}</strong>{% if not d.aktywne %} <span class="badge badge-zakonczona">wyłączone</span>{% endif %}</td>
+          <td data-label="Budynek">{{ d.budynek or 'wszystkie' }}</td>
+          <td data-label="Ostatnio">{{ (d.ostatnio|data ~ ' ' ~ d.ostatnio[11:16]) if d.ostatnio else 'jeszcze nie wysyłało' }}</td>
+          <td data-label="">
+            <form method="post" action="{{ url_for('zarzadca.urzadzenie_akcja', did=d.id, akcja='wylacz') }}" class="inline">{{ csrf() }}<input type="hidden" name="b" value="{{ b.id }}"><button class="linkbtn" type="submit">{{ 'wyłącz' if d.aktywne else 'włącz' }}</button></form>
+            <form method="post" action="{{ url_for('zarzadca.urzadzenie_akcja', did=d.id, akcja='usun') }}" class="inline" onsubmit="return confirm('Usunąć urządzenie? Jego token przestanie działać.')">{{ csrf() }}<input type="hidden" name="b" value="{{ b.id }}"><button class="linkbtn danger" type="submit">usuń</button></form></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  <details class="add-box">
+    <summary>+ Dodaj urządzenie (token API)</summary>
+    <form method="post" action="{{ url_for('zarzadca.urzadzenie_nowe') }}" class="form">
+      {{ csrf() }}<input type="hidden" name="b" value="{{ b.id }}">
+      <div class="form-grid">
+        <label class="field">Nazwa<input name="nazwa" placeholder="np. Bramka LoRa – piwnica" required maxlength="100"></label>
+        <label class="field">Budynek<select name="budynek_id"><option value="">wszystkie</option>{% for x in budynki %}<option value="{{ x.id }}" {% if x.id == b.id %}selected{% endif %}>{{ x.nazwa }}</option>{% endfor %}</select>
+          <span class="hint">Urządzenie może wysyłać tylko liczniki tego budynku</span></label>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Utwórz token</button></div>
+    </form>
+  </details>
+  <details class="add-box">
+    <summary>Jak wysyłać pomiary (API)</summary>
+    <p class="small">Licznik rozpoznawany jest po numerze wpisanym w lokalu (nr wodomierza / ciepłomierza) albo w budynku (liczniki główne). Czas w ISO 8601 — bez strefy = czas lokalny. Na koniec miesiąca wyślij stan z ostatniego dnia, 23:59.</p>
+<div class="api-doc">curl -X POST {{ api_url }} \
+  -H "Authorization: Bearer &lt;token&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"pomiary": [
+        {"licznik": "W-1001", "wartosc": 152.37, "czas": "2026-11-30T23:59:00"},
+        {"licznik": "C-2001", "wartosc": 98.805, "czas": "2026-11-30T23:59:00"}
+      ]}'</div>
+  </details>
+</section>
+{% endblock %}

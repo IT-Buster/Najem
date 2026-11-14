@@ -468,6 +468,8 @@ def nazwa_budynku(bid):
     return b["nazwa"] if b else None
 @bp.get("/rozliczenia")
 def rozliczenia():
+    from pomiary import auto_przenies
+    auto_przenies()
     okres = okres_z_args()
     db = get_db()
     wiersze = []
@@ -563,6 +565,8 @@ def _num(v):
 
 @bp.route("/liczniki", methods=["GET", "POST"])
 def liczniki():
+    from pomiary import auto_przenies
+    auto_przenies()
     okres = okres_z_args()
     db = get_db()
     b, bl = wybrany_budynek()
@@ -595,7 +599,9 @@ def liczniki():
                     db.execute(
                         "INSERT INTO odczyty (lokal_id, okres, data, cieplo, woda) VALUES (?,?,?,?,?)"
                         " ON CONFLICT(lokal_id, okres) DO UPDATE SET data=excluded.data,"
-                        " cieplo=excluded.cieplo, woda=excluded.woda",
+                        " cieplo=excluded.cieplo, woda=excluded.woda,"
+                        " zrodlo=CASE WHEN odczyty.cieplo IS excluded.cieplo AND odczyty.woda IS excluded.woda"
+                        " THEN odczyty.zrodlo END",
                         (lid, okres, data,
                          None if vals["cieplo"] is None else float(vals["cieplo"]),
                          None if vals["woda"] is None else float(vals["woda"])))

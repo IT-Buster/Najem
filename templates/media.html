@@ -4,6 +4,69 @@
 <h1>Liczniki i media</h1>
 <p class="muted">Odczyty liczników z początku każdego miesiąca i zużycie</p>
 
+{% if lokale_odczyt %}
+<section class="panel-box" id="podaj">
+  <h2>Podaj odczyt liczników</h2>
+  {% if w_oknie_dzis %}
+  <p class="small">Trwa okres podawania odczytów: <strong>{{ okno_od|data }} – {{ okno_do|data }}</strong>. Odczyt sprawdzi zarządca; zdjęcie licznika ułatwia weryfikację.</p>
+  {% else %}
+  <p class="flash">Do rozliczenia liczy się stan z końca miesiąca. Najbliżej podasz go w dniach <strong>{{ okno_od|data }} – {{ okno_do|data }}</strong>; odczyt podany wcześniej trafi tylko do historii.</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('najemca_odczyt') }}" enctype="multipart/form-data" class="form" id="form-odczyt" novalidate>
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      {% if lokale_odczyt|length > 1 %}
+      <label class="field">Lokal
+        <select name="lokal_id">{% for l in lokale_odczyt %}<option value="{{ l.id }}">{{ l.nazwa }}</option>{% endfor %}</select>
+      </label>
+      {% else %}<input type="hidden" name="lokal_id" value="{{ lokale_odczyt[0].id }}">{% endif %}
+      <label class="field">Data odczytu<input type="date" name="data" value="{{ dzis }}" max="{{ dzis }}" required></label>
+      <label class="field">Wodomierz (m³)<input name="woda" inputmode="decimal" placeholder="np. 152,37"></label>
+      <label class="field">Ciepłomierz (GJ)<input name="cieplo" inputmode="decimal" placeholder="np. 98,805"></label>
+      <label class="field">Zdjęcie licznika<input type="file" name="zdjecie" accept="image/*" capture="environment">
+        <span class="hint">Opcjonalnie — zostanie zmniejszone przed wysłaniem</span></label>
+    </div>
+    <label class="field field-wide">Uwagi<input name="uwagi" maxlength="300"></label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Wyślij odczyt</button></div>
+  </form>
+</section>
+<script>
+/* zmniejsza zdjęcie z aparatu (do 1600 px, JPEG) — szybciej się wysyła i mieści w limicie serwera */
+document.getElementById("form-odczyt").addEventListener("submit", async function (e) {
+  const inp = this.querySelector('input[type=file]'), f = inp.files[0];
+  if (!f || f.size < 600000 || !window.createImageBitmap) return;
+  e.preventDefault();
+  const btn = this.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Wysyłanie…";
+  try {
+    const img = await createImageBitmap(f), s = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.85));
+    const fd = new FormData(this); fd.set("zdjecie", blob, "licznik.jpg");
+    const r = await fetch(this.action, { method: "POST", body: fd, credentials: "same-origin" });
+    const html = await r.text();
+    history.replaceState(null, "", r.url);
+    document.open(); document.write(html); document.close();
+  } catch (err) { btn.disabled = false; btn.textContent = "Wyślij odczyt"; this.submit(); }
+});
+</script>
+{% endif %}
+
+{% if moje_pomiary %}
+<section class="panel-box">
+  <h2>Moje zgłoszone odczyty</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Odczyt</th><th>Lokal</th><th class="num">Stan</th><th>Status</th></tr></thead>
+    <tbody>{% for p in moje_pomiary %}
+      <tr><td data-label="Odczyt"><strong>{{ p.czas|data }}</strong><span class="line muted small">{{ 'wodomierz' if p.rodzaj == 'woda' else 'ciepłomierz' }}{% if p.zdjecie %} · <a href="{{ url_for('zdjecie', pid=p.id) }}" target="_blank">zdjęcie</a>{% endif %}</span></td>
+          <td data-label="Lokal">{{ p.lokal }}</td>
+          <td data-label="Stan" class="num">{{ p.wartosc|liczba(3 if p.rodzaj == 'cieplo' else 2) }} {{ 'GJ' if p.rodzaj == 'cieplo' else 'm³' }}</td>
+          <td data-label="Status">{% if p.status == 'oczekuje' %}<span class="badge badge-przyszla">czeka na zarządcę</span>{% elif p.status == 'zatwierdzony' %}<span class="badge badge-aktywna">przyjęty</span>{% else %}<span class="badge badge-zakonczona">odrzucony</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+
 {% for d in dane %}
 <section class="panel-box">
   <h2>{{ d.l.nazwa }}</h2>

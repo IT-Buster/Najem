@@ -8,7 +8,11 @@
 <div class="page-head">
   <div><h1>Odczyty liczników</h1>
     <p class="muted">{% if b %}{{ b.nazwa }} · {% endif %}stan na {{ (okres ~ '-01')|data }} — zużycie za {{ poprzedni(okres)|okres }}</p></div>
-  {% if b %}<div class="actions"><a class="btn btn-ghost" href="{{ url_for('zarzadca.wymiany', b=b.id) }}">Wymiany liczników{% if wymian_n %} ({{ wymian_n }}){% endif %}</a></div>{% endif %}
+  {% if b %}<div class="actions">
+    {% set n_ocz = oczekujace_odczyty(b.id) %}
+    <a class="btn {{ 'btn-primary' if n_ocz else 'btn-ghost' }}" href="{{ url_for('zarzadca.pomiary', b=b.id) }}">Pomiary i telemetria{% if n_ocz %} · {{ n_ocz }} do zatwierdzenia{% endif %}</a>
+    <a class="btn btn-ghost" href="{{ url_for('zarzadca.wymiany', b=b.id) }}">Wymiany liczników{% if wymian_n %} ({{ wymian_n }}){% endif %}</a>
+  </div>{% endif %}
 </div>
 {% if b is none %}
 <div class="placeholder"><strong>Brak budynków</strong><span>Liczniki należą do budynku. <a href="{{ url_for('zarzadca.budynek_nowy') }}">Dodaj budynek</a>.</span></div>
@@ -41,7 +45,7 @@
         {% for k in ('cieplo', 'woda') %}{% set name = k ~ '_' ~ w.l.id %}
         <td data-label="{{ 'Ciepłomierz' if k == 'cieplo' else 'Wodomierz' }}">
           <input name="{{ name }}" value="{{ val(w, k) }}" inputmode="decimal" class="{% if bledy[name] %}bad{% endif %}" aria-label="{{ w.l.nazwa }} – {{ k }}">
-          <span class="muted small">poprz.: {{ (w.p[k]|liczba(3)) if w.p and w.p[k] is not none else '—' }}</span>
+          <span class="muted small">poprz.: {{ (w.p[k]|liczba(3)) if w.p and w.p[k] is not none else '—' }}{% if w.o and w.o.zrodlo == 'pomiar' and w.o[k] is not none %} · <span title="Odczyt z pomiarów (telemetria / najemca)">z pomiarów</span>{% endif %}</span>
           {% if bledy[name] %}<span class="err small">{{ bledy[name] }}</span>{% endif %}
         </td>
         {% endfor %}

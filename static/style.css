@@ -299,3 +299,6 @@ details.pay summary { cursor: pointer; color: var(--accent); }
 .pay-form { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .4rem; }
 .pay-form input { width: 8.5rem; padding: .4rem .5rem; }
 .pay-form input[type=date] { width: 10rem; }
+.flash-token { background: var(--warn-soft); color: var(--warn); word-break: break-all; font-family: ui-monospace, monospace; font-size: .9rem; }
+.api-doc { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .8rem; overflow-x: auto; font-size: .82rem; white-space: pre; }
+.thumb { max-width: 120px; max-height: 90px; border-radius: 6px; display: block; margin-top: .3rem; }
