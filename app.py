@@ -145,6 +145,24 @@ CREATE TABLE IF NOT EXISTS odczyty (
     UNIQUE (lokal_id, okres)
 );
 
+-- Wymiana licznika w trakcie miesiąca zużycia 'okres' (RRRR-MM). Zużycie za ten miesiąc =
+-- (stan końcowy starego − odczyt z początku miesiąca) + (odczyt z początku następnego − stan początkowy nowego).
+-- lokal_id < 0 → licznik główny budynku o id = −lokal_id.
+CREATE TABLE IF NOT EXISTS wymiany (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    lokal_id    INTEGER NOT NULL,
+    rodzaj      TEXT NOT NULL CHECK (rodzaj IN ('woda', 'cieplo')),
+    okres       TEXT NOT NULL,
+    data        TEXT NOT NULL,
+    stan_stary  REAL NOT NULL,          -- stan końcowy zdejmowanego licznika
+    stan_nowy   REAL NOT NULL DEFAULT 0,-- stan początkowy nowego licznika
+    nr_stary    TEXT,
+    nr_nowy     TEXT,
+    uwagi       TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (lokal_id, rodzaj, okres)
+);
+
 -- Faktury dostawców; okres = miesiąc zużycia (RRRR-MM); kwoty brutto w groszach
 CREATE TABLE IF NOT EXISTS faktury (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -112,6 +112,7 @@ def budynek_usun(bid):
         flash("Nie można usunąć budynku, który ma lokale lub faktury.", "err")
         return redirect(url_for(".budynek_edycja", bid=bid))
     db.execute("DELETE FROM odczyty WHERE lokal_id=?", (-bid,))
+    db.execute("DELETE FROM wymiany WHERE lokal_id=?", (-bid,))
     db.execute("DELETE FROM budynki WHERE id=?", (bid,))
     db.commit()
     flash(f"Usunięto budynek „{b['nazwa']}”.", "ok")

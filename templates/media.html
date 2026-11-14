@@ -17,7 +17,7 @@
       <tr><td data-label="Odczyt"><strong>{{ (h.o.data or h.o.okres ~ '-01')|data }}</strong></td>
           <td data-label="Ciepłomierz" class="num">{{ h.o.cieplo|liczba(3) }} GJ</td>
           <td data-label="Wodomierz" class="num">{{ h.o.woda|liczba(2) }} m³</td>
-          <td data-label="Zużycie za">{{ h.za|okres }}</td>
+          <td data-label="Zużycie za">{{ h.za|okres }}{% for x in h.wym %}<span class="line muted small">wymiana: {{ x }}</span>{% endfor %}</td>
           <td data-label="Ciepło" class="num">{{ h.z.cieplo|liczba(3) }} GJ</td>
           <td data-label="Woda" class="num">{{ h.z.woda|liczba(2) }} m³</td></tr>
     {% endfor %}</tbody>

@@ -8,6 +8,7 @@
 <div class="page-head">
   <div><h1>Odczyty liczników</h1>
     <p class="muted">{% if b %}{{ b.nazwa }} · {% endif %}stan na {{ (okres ~ '-01')|data }} — zużycie za {{ poprzedni(okres)|okres }}</p></div>
+  {% if b %}<div class="actions"><a class="btn btn-ghost" href="{{ url_for('zarzadca.wymiany', b=b.id) }}">Wymiany liczników{% if wymian_n %} ({{ wymian_n }}){% endif %}</a></div>{% endif %}
 </div>
 {% if b is none %}
 <div class="placeholder"><strong>Brak budynków</strong><span>Liczniki należą do budynku. <a href="{{ url_for('zarzadca.budynek_nowy') }}">Dodaj budynek</a>.</span></div>
@@ -46,7 +47,9 @@
         {% endfor %}
         <td data-label="Zużycie" class="num">
           <span class="line">{{ w.z.cieplo|liczba(3) }} GJ</span><span class="line">{{ w.z.woda|liczba(2) }} m³</span>
-          {% if w.ostrz %}<span class="line"><span class="badge badge-konczy">ujemne — sprawdź</span></span>{% endif %}
+          {% for k in w.wym %}<span class="line"><span class="badge badge-przyszla">wymiana {{ 'ciepłomierza' if k == 'cieplo' else 'wodomierza' }}</span></span>{% endfor %}
+          {% if w.ostrz %}<span class="line"><span class="badge badge-konczy">ujemne — sprawdź</span>
+            <a class="small" href="{{ url_for('zarzadca.wymiany', b=b.id, lokal=w.l.id, rodzaj=w.ostrz[0], okres=poprzedni(okres)) }}">wymiana licznika?</a></span>{% endif %}
         </td>
       </tr>
     {% endfor %}

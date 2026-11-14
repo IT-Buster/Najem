@@ -171,12 +171,26 @@ def odczyt(lokal_id, okres):
     return get_db().execute("SELECT * FROM odczyty WHERE lokal_id=? AND okres=?", (lokal_id, okres)).fetchone()
 
 
+def wymiana(lokal_id, rodzaj, okres_media):
+    return get_db().execute("SELECT * FROM wymiany WHERE lokal_id=? AND rodzaj=? AND okres=?",
+                            (lokal_id, rodzaj, okres_media)).fetchone()
+
+
 def zuzycie(lokal_id, okres_media):
-    """Zużycie w miesiącu okres_media: odczyt z początku następnego miesiąca − odczyt z początku tego."""
+    """Zużycie w miesiącu okres_media: odczyt z początku następnego miesiąca − odczyt z początku tego.
+    Przy wymianie licznika w tym miesiącu: (stan końcowy starego − odczyt początkowy)
+    + (odczyt końcowy − stan początkowy nowego)."""
     a, b = odczyt(lokal_id, okres_media), odczyt(lokal_id, nastepny(okres_media))
     out = {}
     for k in ("cieplo", "woda"):
-        out[k] = (dec(b[k]) - dec(a[k])) if a and b and a[k] is not None and b[k] is not None else None
+        if not (a and b and a[k] is not None and b[k] is not None):
+            out[k] = None
+            continue
+        w = wymiana(lokal_id, k, okres_media)
+        if w:
+            out[k] = (dec(w["stan_stary"]) - dec(a[k])) + (dec(b[k]) - dec(w["stan_nowy"]))
+        else:
+            out[k] = dec(b[k]) - dec(a[k])
     return out
 
 
@@ -593,17 +607,113 @@ def liczniki():
         if o and o["data"]:
             data_odczytu = data_odczytu or o["data"]
         ostrz = [k for k in ("cieplo", "woda") if z[k] is not None and z[k] < 0]
+        wym = [k for k in ("cieplo", "woda") if wymiana(l["id"], k, poprzedni(okres))]
         if not l["glowny"]:
             for k in suma:
                 if z[k] is not None:
                     suma[k] += z[k]
-        wiersze.append({"l": l, "o": o, "p": p, "z": z, "ostrz": ostrz})
+        wiersze.append({"l": l, "o": o, "p": p, "z": z, "ostrz": ostrz, "wym": wym})
     glowny = wiersze[0]["z"]
     podzial = {r: rozdzial(r, poprzedni(okres), b["id"]) for r in ("woda", "cieplo")}
     form = request.form if request.method == "POST" else None
+    wymian_n = db.execute(f"SELECT count(*) FROM wymiany WHERE lokal_id IN ({','.join('?' * len(lokale))})",
+                          [l["id"] for l in lokale]).fetchone()[0]
     return render_template("admin/liczniki.html", active="liczniki", okres=okres, wiersze=wiersze, b=b, budynki=bl,
+                           wymian_n=wymian_n,
                            suma=suma, glowny=glowny, bledy=bledy, form=form, podzial=podzial,
                            data_odczytu=data_odczytu or granice(okres)[0])
+
+
+# ---------- wymiana liczników ----------
+NAZWA_LICZNIKA = {"woda": "wodomierz", "cieplo": "ciepłomierz"}
+
+
+def _liczniki_budynku(b):
+    """(id, nazwa, nr wodomierza, nr ciepłomierza) — liczniki główne + lokale budynku."""
+    out = [(glowny_id(b["id"]), "Liczniki główne budynku", None, None)]
+    for l in get_db().execute("SELECT * FROM lokale WHERE budynek_id=? ORDER BY nazwa", (b["id"],)):
+        out.append((l["id"], l["nazwa"], l["nr_wodomierza"], l["nr_cieplomierza"]))
+    return out
+
+
+@bp.route("/liczniki/wymiany", methods=["GET", "POST"])
+def wymiany():
+    b, bl = wybrany_budynek()
+    if b is None:
+        return redirect(url_for(".liczniki"))
+    db = get_db()
+    liczniki_b = _liczniki_budynku(b)
+    ids = {x[0]: x for x in liczniki_b}
+    lid = request.values.get("lokal", type=int)
+    rodzaj = request.values.get("rodzaj", "woda")
+    status = 200
+    if request.method == "POST":
+        f = Form(request.form)
+        lid = f.number("lokal_id", "Licznik", -10**9, 10**9, required=True)
+        if lid is not None and lid not in ids:
+            f.error("lokal_id", "Wybierz lokal tego budynku.")
+        rodzaj = f.choice("rodzaj", "Rodzaj", ["woda", "cieplo"])
+        d = f.date("data", "Data wymiany")
+        ok = f.text("okres", "Miesiąc zużycia", required=True, max_len=7)
+        if ok and not OKRES_RE.fullmatch(ok):
+            f.error("okres", "Miesiąc w formacie RRRR-MM.")
+        try:
+            stary, nowy = _num(f.raw.get("stan_stary")), _num(f.raw.get("stan_nowy")) or Decimal(0)
+        except ValueError:
+            stary = nowy = None
+            f.error("stan_stary", "Podaj liczby ≥ 0.")
+        if stary is None:
+            f.error("stan_stary", "Podaj stan końcowy starego licznika.")
+        f.text("nr_stary", "Nr starego licznika", max_len=50)
+        f.text("nr_nowy", "Nr nowego licznika", max_len=50)
+        f.text("uwagi", "Uwagi", max_len=1000)
+        if f.ok:
+            a, bb = odczyt(lid, ok), odczyt(lid, nastepny(ok))
+            if a and a[rodzaj] is not None and stary < dec(a[rodzaj]):
+                f.error("stan_stary", f"Mniejszy niż odczyt z {fmt_data(ok + '-01')} ({liczba(a[rodzaj], 3)}).")
+            if bb and bb[rodzaj] is not None and dec(bb[rodzaj]) < nowy:
+                f.error("stan_nowy", f"Większy niż odczyt z {fmt_data(nastepny(ok) + '-01')} ({liczba(bb[rodzaj], 3)}).")
+        if f.ok:
+            db.execute("""INSERT INTO wymiany (lokal_id, rodzaj, okres, data, stan_stary, stan_nowy, nr_stary, nr_nowy, uwagi)
+                          VALUES (?,?,?,?,?,?,?,?,?)
+                          ON CONFLICT(lokal_id, rodzaj, okres) DO UPDATE SET data=excluded.data,
+                          stan_stary=excluded.stan_stary, stan_nowy=excluded.stan_nowy, nr_stary=excluded.nr_stary,
+                          nr_nowy=excluded.nr_nowy, uwagi=excluded.uwagi""",
+                       (lid, rodzaj, ok, d, float(stary), float(nowy), f.clean["nr_stary"], f.clean["nr_nowy"],
+                        f.clean["uwagi"]))
+            if lid > 0 and f.clean["nr_nowy"]:            # nowy numer licznika w danych lokalu
+                kol = "nr_wodomierza" if rodzaj == "woda" else "nr_cieplomierza"
+                db.execute(f"UPDATE lokale SET {kol}=? WHERE id=?", (f.clean["nr_nowy"], lid))
+            db.commit()
+            flash(f"Zapisano wymianę: {ids[lid][1]}, {NAZWA_LICZNIKA[rodzaj]}, {fmt_okres(ok)}.", "ok")
+            return redirect(url_for(".wymiany", b=b["id"]))
+        status = 422
+    else:
+        okres = okres_z_args()
+        pre = {"lokal_id": str(lid or ""), "rodzaj": rodzaj, "okres": okres, "data": date.today().isoformat(),
+               "stan_nowy": "0"}
+        if lid in ids:
+            pre["nr_stary"] = ids[lid][2] if rodzaj == "woda" else ids[lid][3]
+            pre["nr_stary"] = pre["nr_stary"] or ""
+        f = Form(pre)
+    lista = db.execute(f"""SELECT * FROM wymiany WHERE lokal_id IN ({','.join('?' * len(ids))})
+                           ORDER BY okres DESC, id DESC""", list(ids)).fetchall()
+    wiersze = []
+    for w in lista:
+        a, bb = odczyt(w["lokal_id"], w["okres"]), odczyt(w["lokal_id"], nastepny(w["okres"]))
+        wiersze.append({"w": w, "nazwa": ids[w["lokal_id"]][1], "z": zuzycie(w["lokal_id"], w["okres"])[w["rodzaj"]],
+                        "a": a[w["rodzaj"]] if a else None, "b": bb[w["rodzaj"]] if bb else None})
+    return render_template("admin/wymiany.html", active="liczniki", f=f, b=b, budynki=bl,
+                           opcje=[(x[0], x[1]) for x in liczniki_b], wiersze=wiersze), status
+
+
+@bp.post("/liczniki/wymiany/<int:wid>/usun")
+def wymiana_usun(wid):
+    w = _get_or_404("wymiany", wid)
+    get_db().execute("DELETE FROM wymiany WHERE id=?", (wid,))
+    get_db().commit()
+    flash("Usunięto wymianę licznika.", "ok")
+    return redirect(url_for(".wymiany", b=request.form.get("b") or ""))
 
 
 # ---------- faktury ----------
@@ -838,9 +948,9 @@ def media():
                           (l["id"],)).fetchall()
         hist = []
         for i, o in enumerate(odcz):
-            p = odcz[i + 1] if i + 1 < len(odcz) and odcz[i + 1]["okres"] == poprzedni(o["okres"]) else None
-            z = {k: (dec(o[k]) - dec(p[k]) if p and o[k] is not None and p[k] is not None else None)
-                 for k in ("cieplo", "woda")}
-            hist.append({"o": o, "z": z, "za": poprzedni(o["okres"])})
+            za = poprzedni(o["okres"])
+            z = zuzycie(l["id"], za)
+            wym = [NAZWA_LICZNIKA[k] for k in ("cieplo", "woda") if wymiana(l["id"], k, za)]
+            hist.append({"o": o, "z": z, "za": za, "wym": wym})
         dane.append({"l": l, "hist": hist[:24]})
     return render_template("media.html", active="media", dane=dane)

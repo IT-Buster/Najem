@@ -1,0 +1,57 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import field, select, area, csrf %}
+{% block title %}Wymiany liczników{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('zarzadca.liczniki', b=b.id) }}">Odczyty liczników</a> / wymiany</nav>
+<div class="page-head">
+  <div><h1>Wymiany liczników</h1><p class="muted">{{ b.nazwa }}</p></div>
+</div>
+{% if budynki|length > 1 %}
+<form class="toolbar" method="get">
+  <select name="b" aria-label="Budynek" onchange="this.form.submit()">
+    {% for x in budynki %}<option value="{{ x.id }}" {% if x.id == b.id %}selected{% endif %}>{{ x.nazwa }}</option>{% endfor %}
+  </select>
+</form>
+{% endif %}
+
+<details class="panel-box add-box" {% if f.errors or f.raw.get('lokal_id') %}open{% endif %}>
+  <summary>+ Zapisz wymianę licznika</summary>
+  <p class="muted small">Zużycie w miesiącu wymiany = (stan końcowy starego − odczyt z 1. dnia miesiąca) + (odczyt z 1. dnia następnego miesiąca − stan początkowy nowego).</p>
+  <form method="post" class="form" novalidate autocomplete="off">
+    {{ csrf() }}<input type="hidden" name="b" value="{{ b.id }}">
+    <div class="form-grid">
+      {{ select(f, "lokal_id", "Lokal", opcje) }}
+      {{ select(f, "rodzaj", "Licznik", [("woda", "Wodomierz"), ("cieplo", "Ciepłomierz")]) }}
+      {{ field(f, "data", "Data wymiany", type="date", attrs="required") }}
+      {{ field(f, "okres", "Miesiąc zużycia", type="month", hint="Miesiąc, w którym wymieniono licznik (między odczytami z 1. dnia)", attrs="required") }}
+      {{ field(f, "stan_stary", "Stan końcowy starego", hint="Wskazanie zdejmowanego licznika", attrs='inputmode="decimal" required') }}
+      {{ field(f, "stan_nowy", "Stan początkowy nowego", hint="Zwykle 0", attrs='inputmode="decimal"') }}
+      {{ field(f, "nr_stary", "Nr starego licznika") }}
+      {{ field(f, "nr_nowy", "Nr nowego licznika", hint="Zapisze się w danych lokalu") }}
+    </div>
+    {{ area(f, "uwagi", "Uwagi", rows=2) }}
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Zapisz wymianę</button></div>
+  </form>
+</details>
+
+{% if wiersze %}
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Lokal</th><th>Licznik</th><th class="num">Stary → nowy</th><th class="num">Zużycie w miesiącu</th><th></th></tr></thead>
+  <tbody>{% for r in wiersze %}{% set w = r.w %}{% set j = 'GJ' if w.rodzaj == 'cieplo' else 'm³' %}{% set m = 3 if w.rodzaj == 'cieplo' else 2 %}
+    <tr>
+      <td data-label="Lokal"><strong>{{ r.nazwa }}</strong><br><span class="muted small">{{ w.data|data }} · zużycie za {{ w.okres|okres }}</span></td>
+      <td data-label="Licznik">{{ 'Ciepłomierz' if w.rodzaj == 'cieplo' else 'Wodomierz' }}{% if w.nr_stary or w.nr_nowy %}<span class="line muted small">{{ w.nr_stary or '?' }} → {{ w.nr_nowy or '?' }}</span>{% endif %}</td>
+      <td data-label="Stary → nowy" class="num">{{ w.stan_stary|liczba(m) }} → {{ w.stan_nowy|liczba(m) }} {{ j }}</td>
+      <td data-label="Zużycie" class="num">{% if r.z is not none %}<strong>{{ r.z|liczba(m) }} {{ j }}</strong>
+        <span class="line muted small">({{ w.stan_stary|liczba(m) }} − {{ r.a|liczba(m) }}) + ({{ r.b|liczba(m) }} − {{ w.stan_nowy|liczba(m) }})</span>
+        {% else %}<span class="muted">brak odczytów</span>{% endif %}</td>
+      <td data-label="">
+        <form method="post" action="{{ url_for('zarzadca.wymiana_usun', wid=w.id) }}" class="inline" onsubmit="return confirm('Usunąć tę wymianę?')">
+          {{ csrf() }}<input type="hidden" name="b" value="{{ b.id }}"><button class="linkbtn danger" type="submit">Usuń</button></form></td>
+    </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}
+<div class="placeholder"><strong>Brak wymian</strong><span>Gdy licznik zostanie wymieniony, zapisz stan końcowy starego i początkowy nowego — zużycie za ten miesiąc policzy się poprawnie.</span></div>
+{% endif %}
+{% endblock %}
