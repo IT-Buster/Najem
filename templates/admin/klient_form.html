@@ -1,0 +1,61 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import field, csrf %}
+{% from "_macros.html" import badge %}
+{% block title %}{{ (k.full_name or k.login) if k else 'Nowy klient' }}{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('zarzadca.klienci') }}">Klienci</a> / {{ (k.full_name or k.login) if k else 'Nowy' }}</nav>
+<div class="page-head">
+  <div>
+    <h1>{{ (k.full_name or k.login) if k else 'Nowy klient' }}</h1>
+    {% if k %}<p>{% if k.aktywny %}<span class="badge badge-aktywna">Konto aktywne</span>{% else %}<span class="badge badge-zakonczona">Konto zablokowane</span>{% endif %}
+      <span class="muted">· ostatnie logowanie: {{ k.last_login_at|data if k.last_login_at else 'nigdy' }}</span></p>{% endif %}
+  </div>
+  {% if k %}<div class="actions"><a class="btn btn-primary" href="{{ url_for('zarzadca.umowa_nowa', klient=k.id) }}">+ Umowa dla klienta</a></div>{% endif %}
+</div>
+
+<form method="post" class="panel-box form" novalidate autocomplete="off">
+  {{ csrf() }}
+  <div class="form-grid">
+    {{ field(f, "full_name", "Imię i nazwisko", attrs="required maxlength=120") }}
+    {{ field(f, "login", "Login", hint="Do logowania w portalu; bez polskich znaków", attrs='required maxlength=50 autocomplete="off"') }}
+    {{ field(f, "email", "E-mail", type="email") }}
+    {{ field(f, "telefon", "Telefon", type="tel") }}
+    {{ field(f, "haslo", "Nowe hasło" if k else "Hasło startowe", type="password",
+             hint="Zostaw puste, aby nie zmieniać" if k else "Min. 8 znaków — przekaż je klientowi",
+             attrs='autocomplete="new-password" minlength=8') }}
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ 'Zapisz zmiany' if k else 'Dodaj klienta' }}</button>
+    <a href="{{ url_for('zarzadca.klienci') }}">Anuluj</a>
+  </div>
+</form>
+
+{% if k %}
+<section class="panel-box">
+  <h2>Umowy klienta</h2>
+  {% if umowy %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Numer</th><th>Lokal</th><th>Okres</th><th>Status</th></tr></thead>
+    <tbody>{% for u in umowy %}
+      <tr><td data-label="Numer"><a href="{{ url_for('zarzadca.umowa_edycja', uid=u.id) }}">{{ u.numer }}</a></td>
+          <td data-label="Lokal">{{ u.lokal_nazwa }}</td>
+          <td data-label="Okres">{{ u.data_od|data }} – {{ (u.rozwiazana_dnia or u.data_do)|data if (u.rozwiazana_dnia or u.data_do) else 'czas nieokreślony' }}</td>
+          <td data-label="Status">{{ badge(u) }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">Klient nie ma jeszcze umów.</p>{% endif %}
+</section>
+
+<div class="danger-zone">
+  <form method="post" action="{{ url_for('zarzadca.klient_aktywny', kid=k.id) }}" class="inline">
+    {{ csrf() }}
+    {% if k.aktywny %}
+      <button class="btn btn-danger btn-sm" type="submit">Zablokuj konto</button>
+      <span class="muted small">Klient nie będzie mógł się zalogować. Dane i umowy zostają.</span>
+    {% else %}
+      <button class="btn btn-ghost btn-sm" type="submit">Odblokuj konto</button>
+    {% endif %}
+  </form>
+</div>
+{% endif %}
+{% endblock %}

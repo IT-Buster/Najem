@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import status_line %}
+{% block title %}Umowy{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Umowy</h1><p class="muted">{{ rows|length }} {{ 'umowa' if rows|length == 1 else 'umów' if rows|length == 0 or rows|length > 4 else 'umowy' }}</p></div>
+  <div class="actions"><a class="btn btn-primary" href="{{ url_for('zarzadca.umowa_nowa') }}">+ Dodaj umowę</a></div>
+</div>
+
+<form class="toolbar" method="get">
+  <select name="status" aria-label="Status" onchange="this.form.submit()">
+    {% for v, t in statusy %}<option value="{{ v }}" {% if v == st %}selected{% endif %}>{{ t }}</option>{% endfor %}
+  </select>
+  <input name="q" value="{{ q }}" placeholder="Szukaj: numer, lokal, najemca" aria-label="Szukaj">
+  <button class="btn btn-ghost" type="submit">Szukaj</button>
+  {% if q or st %}<a href="{{ url_for('zarzadca.umowy') }}">Wyczyść</a>{% endif %}
+</form>
+
+{% if rows %}
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Numer</th><th>Lokal</th><th>Najemca</th><th>Okres</th><th class="num">Miesięcznie</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for u in rows %}
+    <tr>
+      <td data-label="Numer"><a href="{{ url_for('zarzadca.umowa_edycja', uid=u.id) }}"><strong>{{ u.numer }}</strong></a><br><span class="muted small">{{ u.rodzaj }}</span></td>
+      <td data-label="Lokal"><a href="{{ url_for('zarzadca.lokal_edycja', lid=u.lokal_id) }}">{{ u.lokal_nazwa }}</a></td>
+      <td data-label="Najemca"><a href="{{ url_for('zarzadca.klient_edycja', kid=u.najemca_id) }}">{{ u.najemca_nazwa or u.najemca_login }}</a></td>
+      <td data-label="Okres">{{ u.data_od|data }} –<br>{{ (u.rozwiazana_dnia or u.data_do)|data if (u.rozwiazana_dnia or u.data_do) else 'czas nieokreślony' }}</td>
+      <td data-label="Miesięcznie" class="num">{{ (u.czynsz + u.oplaty)|zl }}</td>
+      <td data-label="Status">{{ status_line(u) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<div class="placeholder"><strong>Brak umów</strong><span>{% if q or st %}Nic nie pasuje do filtrów.{% else %}Dodaj pierwszą umowę.{% endif %}</span></div>
+{% endif %}
+{% endblock %}

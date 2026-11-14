@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Najem{% endblock %}
+{% block body_class %}hero-page{% endblock %}
+{% block body %}
+<header class="topbar">
+  <a class="brand" href="{{ url_for('index') }}"><span class="logo">N</span> Najem</a>
+  {% if user %}
+    <a class="btn btn-ghost" href="{{ url_for('panel') }}">Przejdź do panelu</a>
+  {% else %}
+    <a class="btn btn-ghost" href="{{ url_for('login') }}">Zaloguj się</a>
+  {% endif %}
+</header>
+
+<main class="hero">
+  <p class="eyebrow">Portal najemcy</p>
+  <h1>Twój najem w&nbsp;jednym miejscu</h1>
+  <p class="lead">Umowy, płatności, odczyty liczników i&nbsp;zgłoszenia usterek — wygodnie, online, bez papierów.</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="{{ url_for('login') }}">Zaloguj się do panelu</a>
+  </div>
+
+  <ul class="features">
+    <li><strong>Płatności</strong><span>Saldo, terminy i&nbsp;historia wpłat</span></li>
+    <li><strong>Umowy</strong><span>Dokumenty i&nbsp;aneksy zawsze pod ręką</span></li>
+    <li><strong>Zgłoszenia</strong><span>Usterka? Zgłoś i&nbsp;śledź naprawę</span></li>
+  </ul>
+</main>
+
+<footer class="foot">© 2026 {{ nazwa_serwisu }}</footer>
+{% endblock %}

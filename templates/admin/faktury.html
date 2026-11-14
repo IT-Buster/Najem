@@ -1,0 +1,64 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import field, select, csrf, delete_button %}
+{% block title %}Faktury mediów{% endblock %}
+{% block content %}
+{% if fv %}<nav class="crumbs"><a href="{{ url_for('zarzadca.faktury') }}">Faktury mediów</a> / {{ fv.numer }}</nav>{% endif %}
+<div class="page-head">
+  <div><h1>{{ 'Faktura ' ~ fv.numer if fv else 'Faktury mediów' }}</h1>
+    <p class="muted">Z faktur liczona jest cena wody (zł/m³) i ciepła (zł/GJ) dla lokali.</p></div>
+</div>
+
+<details class="panel-box add-box" {% if otworz %}open{% endif %}>
+  <summary>{{ 'Edycja faktury' if fv else '+ Dodaj fakturę' }}</summary>
+  <form method="post" class="form" novalidate autocomplete="off">
+    {{ csrf() }}
+    <div class="form-grid">
+      {{ select(f, "budynek_id", "Budynek", budynki_opcje) }}
+      {{ select(f, "rodzaj", "Rodzaj", [("woda", "Woda i ścieki"), ("cieplo", "Ciepło")]) }}
+      {{ field(f, "numer", "Numer faktury", attrs="required") }}
+      {{ field(f, "okres", "Miesiąc zużycia", type="month", hint="Za który miesiąc jest zużycie", attrs="required") }}
+      {{ field(f, "data", "Data wystawienia", type="date") }}
+      {{ field(f, "zuzycie", "Zużycie (m³ / GJ)", hint="Wg faktury", attrs='inputmode="decimal" required') }}
+      {{ field(f, "kwota", "Kwota brutto (zł)", attrs='inputmode="decimal" required') }}
+      {{ field(f, "oplata_stala", "Opłaty stałe (zł)", hint="Tylko ciepło: przesyłowa + moc", attrs='inputmode="decimal"') }}
+      {{ field(f, "odliczenie", "Odliczenie (zł)", hint="Tylko woda: woda ogrodowa — płaci właściciel", attrs='inputmode="decimal"') }}
+    </div>
+    {{ field(f, "uwagi", "Uwagi") }}
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">{{ 'Zapisz' if fv else 'Dodaj fakturę' }}</button>
+      {% if fv %}<a href="{{ url_for('zarzadca.faktury') }}">Anuluj</a>{% endif %}
+    </div>
+  </form>
+  {% if fv %}<div class="danger-zone">{{ delete_button(url_for('zarzadca.faktura_usun', fid=fv.id), 'Usuń fakturę', 'Usunąć fakturę ' ~ fv.numer ~ '?') }}</div>{% endif %}
+</details>
+
+{% if not fv %}
+{% if budynki|length > 1 %}
+<form class="toolbar" method="get">
+  <select name="b" aria-label="Budynek" onchange="this.form.submit()">
+    <option value="">Wszystkie budynki</option>
+    {% for x in budynki %}<option value="{{ x.id }}" {% if x.id == filtr_b %}selected{% endif %}>{{ x.nazwa }}</option>{% endfor %}
+  </select>
+</form>
+{% endif %}
+{% if rows %}
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Faktura</th><th>Za miesiąc</th><th class="num">Zużycie</th><th class="num">Kwota</th><th class="num">Stałe / odlicz.</th><th class="num">Cena jedn.</th></tr></thead>
+  <tbody>
+  {% for r, cena in rows %}
+    <tr>
+      <td data-label="Faktura"><a href="{{ url_for('zarzadca.faktura_edycja', fid=r.id) }}"><strong>{{ r.numer }}</strong></a><br><span class="muted small">{{ 'Woda i ścieki' if r.rodzaj == 'woda' else 'Ciepło' }}{% if r.data %} · {{ r.data|data }}{% endif %}{% if budynki|length > 1 %} · {{ nazwa_budynku(r.budynek_id) or 'bez budynku' }}{% endif %}</span></td>
+      <td data-label="Za miesiąc">{{ r.okres|okres }}</td>
+      <td data-label="Zużycie" class="num">{{ r.zuzycie|liczba(3 if r.rodzaj == 'cieplo' else 2) }} {{ 'GJ' if r.rodzaj == 'cieplo' else 'm³' }}</td>
+      <td data-label="Kwota" class="num">{{ r.kwota|zl }}</td>
+      <td data-label="Stałe / odlicz." class="num">{{ (r.oplata_stala if r.rodzaj == 'cieplo' else r.odliczenie)|zl }}</td>
+      <td data-label="Cena jedn." class="num">{% if cena is not none %}{{ cena|liczba(2) }} zł/{{ 'GJ' if r.rodzaj == 'cieplo' else 'm³' }}{% else %}—{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<div class="placeholder"><strong>Brak faktur</strong><span>Dodaj fakturę za wodę lub ciepło.</span></div>
+{% endif %}
+{% endif %}
+{% endblock %}

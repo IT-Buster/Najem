@@ -1,0 +1,12 @@
+# dane produkcyjne i sekrety — nigdy do repozytorium
+instance/
+*.sqlite3
+*.sqlite3-*
+!demo/najem-demo.sqlite3
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.log

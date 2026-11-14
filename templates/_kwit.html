@@ -1,0 +1,44 @@
+{# Kwit — zawiadomienie o wysokości opłat. egz: '' (ekran) albo 'Oryginał' / 'Kopia' (druk). #}
+{% macro kwit(u, n, pozycje, rachunek, podglad=False, egz='') -%}
+<article class="notice{% if egz == 'Kopia' %} notice-copy print-only{% endif %}">
+  {% if egz %}<p class="notice-egz print-only">{{ egz }}</p>{% endif %}
+  <header class="notice-head">
+    <div>
+      <strong>{{ u.najemca_nazwa or u.najemca_login }}</strong><br>
+      {{ u.ulica }}{% if u.nr_lokalu %}/{{ u.nr_lokalu }}{% endif %}<br>
+      {{ u.kod }} {{ u.miasto }}
+    </div>
+    <dl class="kv notice-meta">
+      <dt>{{ 'Data podglądu' if podglad else 'Data wystawienia' }}:</dt><dd>{{ (n.data_wystawienia if not podglad else today)|data }}</dd>
+      <dt>Rozliczenie mediów:</dt><dd>{{ krotko(n.okres_media) }}</dd>
+      <dt>Rozliczenie czynsz:</dt><dd>{{ krotko(n.okres_czynsz) }}</dd>
+    </dl>
+  </header>
+  <h2 class="notice-title">Zawiadomienie o wysokości opłat</h2>
+  <table class="notice-table">
+    <thead><tr><th>Tytuł obciążenia</th><th>Sposób naliczania</th><th class="num">Kwota brutto</th></tr></thead>
+    <tbody>
+      {% for p in pozycje %}
+      <tr><td>{{ p.tytul }}</td><td class="muted">{{ p.sposob or '' }}</td><td class="num">{{ p.kwota|zl }}</td></tr>
+      {% endfor %}
+      <tr><td>Saldo czynsz/media <span class="muted small">(„−” nadpłata, „+” niedopłata)</span></td><td></td>
+          <td class="num">{{ n.saldo|zl if n.saldo else '' }}</td></tr>
+    </tbody>
+    <tfoot><tr><td></td><th>Ogółem do zapłaty:</th><td class="num"><strong>{{ n.do_zaplaty|zl }}</strong></td></tr></tfoot>
+  </table>
+  <p class="notice-foot">
+    {% if n.termin %}Termin płatności: <strong>{{ n.termin|data }}</strong><br>{% endif %}
+    {% if rachunek %}Rachunek bankowy: <strong>{{ rachunek }}</strong><br>{% endif %}
+    Tytuł przelewu: {{ u.numer }} – {{ krotko(n.okres_czynsz) }}
+  </p>
+</article>
+{%- endmacro %}
+
+{# Kartka A4: oryginał + kopia z linią cięcia #}
+{% macro kartka(u, n, pozycje, rachunek, podglad=False) -%}
+<div class="sheet">
+  {{ kwit(u, n, pozycje, rachunek, podglad, 'Oryginał') }}
+  <div class="cut-line print-only" aria-hidden="true">✂</div>
+  {{ kwit(u, n, pozycje, rachunek, podglad, 'Kopia') }}
+</div>
+{%- endmacro %}

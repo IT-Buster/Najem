@@ -1,0 +1,11 @@
+{% macro adres(r) -%}
+{{ r.ulica }}{% if r.nr_lokalu %}/{{ r.nr_lokalu }}{% endif %}, {{ r.kod }} {{ r.miasto }}
+{%- endmacro %}
+
+{% macro badge(u) -%}
+{% set s = status_umowy(u) %}<span class="badge badge-{{ s[0] }}">{{ s[1] }}</span>
+{%- endmacro %}
+
+{% macro status_line(u) -%}
+{% set s = status_umowy(u) %}<span class="badge badge-{{ s[0] }}">{{ s[1] }}</span> <span class="muted">{{ s[2] }}</span>
+{%- endmacro %}

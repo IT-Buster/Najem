@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import field, area, csrf, delete_button %}
+{% block title %}{{ b.nazwa if b else 'Nowy budynek' }}{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('zarzadca.budynki') }}">Budynki</a> / {{ b.nazwa if b else 'Nowy' }}</nav>
+<div class="page-head">
+  <div><h1>{{ b.nazwa if b else 'Nowy budynek' }}</h1>
+    {% if b %}<p class="muted">{{ lokale|length }} lokali · {{ faktury_n }} faktur</p>{% endif %}</div>
+  {% if b %}<div class="actions">
+    <a class="btn btn-ghost" href="{{ url_for('zarzadca.liczniki', b=b.id) }}">Odczyty liczników</a>
+    <a class="btn btn-ghost" href="{{ url_for('zarzadca.faktury', b=b.id) }}">Faktury</a>
+  </div>{% endif %}
+</div>
+
+<form method="post" class="panel-box form" novalidate autocomplete="off">
+  {{ csrf() }}
+  <h2>Dane budynku</h2>
+  <div class="form-grid">
+    {{ field(f, "nazwa", "Nazwa", hint="np. Lipowa 5", attrs="required maxlength=120") }}
+    {{ field(f, "ulica", "Ulica i numer") }}
+    {{ field(f, "kod", "Kod pocztowy", hint="00-000", attrs='inputmode="numeric" maxlength=6') }}
+    {{ field(f, "miasto", "Miasto") }}
+  </div>
+  <h2>Stawki budynku</h2>
+  <p class="muted small">Puste pole = stawka domyślna z <a href="{{ url_for('zarzadca.ustawienia') }}">Ustawień</a> (podana w podpowiedzi).</p>
+  <div class="form-grid">
+    {% for k, label in [("swiatlo", "Światło – klatka, podwórze"), ("smieci_1", "Śmieci – 1 osoba"), ("smieci_2", "Śmieci – 2 osoby"),
+                        ("smieci_3", "Śmieci – 3 osoby"), ("smieci_4", "Śmieci – 4 osoby"), ("smieci_5", "Śmieci – 5+ osób")] %}
+      {{ field(f, k, label ~ ' (zł)', hint='domyślnie: ' ~ (dom[k]|zl if dom[k] is not none else ('stawka za 1 os. × liczba osób' if k != 'swiatlo' and k != 'smieci_1' else 'brak')), attrs='inputmode="decimal"') }}
+    {% endfor %}
+    {{ field(f, "lokale_cieplo", "Lokale do podziału opłaty przesyłowej", hint="Puste = lokale z nr ciepłomierza", attrs='inputmode="numeric"') }}
+    {{ field(f, "rachunek", "Rachunek bankowy", hint='domyślnie: ' ~ (dom.rachunek or 'brak')) }}
+  </div>
+  {{ area(f, "uwagi", "Uwagi", rows=2) }}
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ 'Zapisz zmiany' if b else 'Dodaj budynek' }}</button>
+    <a href="{{ url_for('zarzadca.budynki') }}">Anuluj</a>
+  </div>
+</form>
+
+{% if b %}
+<section class="panel-box">
+  <h2>Lokale w budynku</h2>
+  {% if lokale %}
+  <ul>{% for l in lokale %}<li><a href="{{ url_for('zarzadca.lokal_edycja', lid=l.id) }}">{{ l.nazwa }}</a>
+    <span class="muted small">{% if l.powierzchnia %}{{ l.powierzchnia|m2 }}{% endif %}{% if l.nr_cieplomierza %} · ciepłomierz {{ l.nr_cieplomierza }}{% endif %}</span></li>{% endfor %}</ul>
+  {% else %}<p class="muted">Brak lokali.</p>{% endif %}
+  <p><a class="btn btn-ghost btn-sm" href="{{ url_for('zarzadca.lokal_nowy', budynek=b.id) }}">+ Nowy lokal w tym budynku</a></p>
+  {% if bez %}
+  <details class="add-box">
+    <summary>+ Przypisz lokale bez budynku</summary>
+    <form method="post" action="{{ url_for('zarzadca.budynek_przypisz', bid=b.id) }}">
+      {{ csrf() }}
+      {% for l in bez %}<label class="check"><input type="checkbox" name="lokal" value="{{ l.id }}"> {{ l.nazwa }} <span class="muted small">{{ l.ulica }}{% if l.nr_lokalu %}/{{ l.nr_lokalu }}{% endif %}</span></label>{% endfor %}
+      <div class="form-actions"><button class="btn btn-primary btn-sm" type="submit">Przypisz zaznaczone</button></div>
+    </form>
+  </details>
+  {% endif %}
+</section>
+
+<div class="danger-zone">
+  {{ delete_button(url_for('zarzadca.budynek_usun', bid=b.id), 'Usuń budynek', 'Usunąć budynek ' ~ b.nazwa ~ '? Możliwe tylko bez lokali i faktur.') }}
+</div>
+{% endif %}
+{% endblock %}

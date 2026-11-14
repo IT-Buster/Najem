@@ -1,0 +1,63 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import field, select, csrf, delete_button %}
+{% block title %}Wpłaty{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Wpłaty</h1><p class="muted">Wpłaty najemców i salda rozliczeń</p></div>
+</div>
+
+<details class="panel-box add-box" {% if f.errors or filtr %}open{% endif %}>
+  <summary>+ Zapisz wpłatę</summary>
+  <form method="post" class="form" novalidate autocomplete="off">
+    {{ csrf() }}
+    <div class="form-grid">
+      {{ select(f, "umowa_id", "Umowa", umowy|map('umowa_opcja')|list) }}
+      {{ field(f, "data", "Data wpłaty", type="date", attrs="required") }}
+      {{ field(f, "kwota", "Kwota (zł)", attrs='inputmode="decimal" required') }}
+      {{ field(f, "opis", "Opis", hint="np. przelew, gotówka") }}
+    </div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Zapisz wpłatę</button></div>
+  </form>
+</details>
+
+{% if salda %}
+<section class="panel-box">
+  <h2>Salda</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Umowa</th><th class="num">Naliczono</th><th class="num">Wpłacono</th><th class="num">Saldo</th></tr></thead>
+    <tbody>{% for s in salda %}
+      <tr><td data-label="Umowa"><a href="{{ url_for('zarzadca.wplaty', umowa=s.u.id) }}"><strong>{{ s.u.lokal_nazwa }}</strong></a><br><span class="muted small">{{ s.u.numer }} · {{ s.u.najemca_nazwa or s.u.najemca_login }}</span></td>
+          <td data-label="Naliczono" class="num">{{ s.nal|zl }}</td>
+          <td data-label="Wpłacono" class="num">{{ s.wpl|zl }}</td>
+          <td data-label="Saldo" class="num">{% if s.saldo > 0 %}<span class="neg">{{ s.saldo|zl }}</span><br><span class="muted small">niedopłata</span>{% elif s.saldo < 0 %}<span class="pos">{{ (-s.saldo)|zl }}</span><br><span class="muted small">nadpłata</span>{% else %}0,00 zł{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+
+<form class="toolbar" method="get">
+  <select name="umowa" aria-label="Umowa" onchange="this.form.submit()">
+    <option value="">Wszystkie umowy</option>
+    {% for u in umowy %}<option value="{{ u.id }}" {% if u.id == filtr %}selected{% endif %}>{{ u.lokal_nazwa }} · {{ u.numer }}</option>{% endfor %}
+  </select>
+  {% if filtr %}<a href="{{ url_for('zarzadca.wplaty') }}">Wyczyść</a>{% endif %}
+</form>
+
+{% if rows %}
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Data</th><th>Umowa</th><th>Opis</th><th class="num">Kwota</th><th></th></tr></thead>
+  <tbody>{% for w in rows %}
+    <tr><td data-label="Data"><strong>{{ w.data|data }}</strong></td>
+        <td data-label="Umowa">{{ w.lokal_nazwa }}<br><span class="muted small">{{ w.numer }} · {{ w.najemca }}</span></td>
+        <td data-label="Opis">{{ w.opis or '—' }}</td>
+        <td data-label="Kwota" class="num">{{ w.kwota|zl }}</td>
+        <td data-label="">
+          <form method="post" action="{{ url_for('zarzadca.wplata_usun', wid=w.id) }}" class="inline" onsubmit="return confirm('Usunąć tę wpłatę?')">
+            {{ csrf() }}<input type="hidden" name="umowa" value="{{ filtr or '' }}"><button class="linkbtn danger" type="submit">Usuń</button>
+          </form></td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}
+<div class="placeholder"><strong>Brak wpłat</strong><span>Zapisz pierwszą wpłatę.</span></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Logowanie{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block body %}
+<main class="auth">
+  <a class="brand" href="{{ url_for('index') }}"><span class="logo">N</span> Najem</a>
+  <form class="card" method="post" autocomplete="on">
+    <h1>Logowanie</h1>
+    <p class="muted">Panel klienta — zaloguj się, aby zobaczyć swój najem.</p>
+
+    {% with msgs = get_flashed_messages() %}
+      {% for m in msgs %}<div class="alert" role="alert">{{ m }}</div>{% endfor %}
+    {% endwith %}
+
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>Login
+      <input name="login" value="{{ login }}" autocomplete="username" required autofocus>
+    </label>
+    <label>Hasło
+      <input name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="btn btn-primary btn-block" type="submit">Zaloguj się</button>
+    <p class="muted small">Nie pamiętasz hasła? Skontaktuj się z zarządcą.</p>
+  </form>
+</main>
+{% endblock %}

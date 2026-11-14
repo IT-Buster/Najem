@@ -1,0 +1,34 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import adres, status_line %}
+{% block title %}Lokale{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Lokale</h1><p class="muted">{{ rows|length }} {{ 'lokal' if rows|length == 1 else 'lokali' }}</p></div>
+  <div class="actions"><a class="btn btn-primary" href="{{ url_for('zarzadca.lokal_nowy') }}">+ Dodaj lokal</a></div>
+</div>
+
+<form class="toolbar" method="get">
+  <input name="q" value="{{ q }}" placeholder="Szukaj: nazwa, ulica, miasto" aria-label="Szukaj">
+  <button class="btn btn-ghost" type="submit">Szukaj</button>
+  {% if q %}<a href="{{ url_for('zarzadca.lokale') }}">Wyczyść</a>{% endif %}
+</form>
+
+{% if rows %}
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Lokal</th><th>Rodzaj</th><th class="num">Metraż</th><th>Najemca</th><th>Stan</th></tr></thead>
+  <tbody>
+  {% for l in rows %}{% set u = biezaca.get(l.id) %}
+    <tr>
+      <td data-label="Lokal"><a href="{{ url_for('zarzadca.lokal_edycja', lid=l.id) }}"><strong>{{ l.nazwa }}</strong></a><br><span class="muted small">{{ adres(l) }}</span></td>
+      <td data-label="Rodzaj">{{ l.rodzaj }}</td>
+      <td data-label="Metraż" class="num">{{ l.powierzchnia|m2 }}</td>
+      <td data-label="Najemca">{% if u %}{{ u.najemca_nazwa or u.najemca_login }}<br><span class="muted small">{{ u.numer }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td data-label="Stan">{% if u %}{{ status_line(u) }}{% else %}<span class="badge badge-wolny">Wolny</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<div class="placeholder"><strong>Brak lokali</strong><span>{% if q %}Nic nie pasuje do wyszukiwania.{% else %}Dodaj pierwszy lokal.{% endif %}</span></div>
+{% endif %}
+{% endblock %}

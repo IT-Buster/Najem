@@ -1,0 +1,135 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import field, area, select, csrf, delete_button %}
+{% from "_macros.html" import status_line %}
+{% block title %}{{ 'Umowa ' ~ u.numer if u else 'Nowa umowa' }}{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('zarzadca.umowy') }}">Umowy</a> / {{ u.numer if u else 'Nowa' }}</nav>
+<div class="page-head">
+  <div>
+    <h1>{{ 'Umowa ' ~ u.numer if u else 'Nowa umowa' }}</h1>
+    {% if u %}<p>{{ status_line(u) }}</p>{% endif %}
+  </div>
+</div>
+
+{% if not klienci_opcje or not lokale_opcje %}
+<div class="flash flash-err">
+  Aby dodać umowę, potrzebny jest co najmniej jeden
+  {% if not lokale_opcje %}<a href="{{ url_for('zarzadca.lokal_nowy') }}">lokal</a>{% endif %}
+  {% if not lokale_opcje and not klienci_opcje %} i {% endif %}
+  {% if not klienci_opcje %}<a href="{{ url_for('zarzadca.klient_nowy') }}">aktywny klient</a>{% endif %}.
+</div>
+{% endif %}
+
+<form method="post" class="panel-box form" novalidate>
+  {{ csrf() }}
+  <h2>Strony i przedmiot umowy</h2>
+  <div class="form-grid">
+    {{ field(f, "numer", "Numer umowy", hint="np. NO/2026/001" if u else "Nadawany automatycznie — możesz zmienić", attrs="maxlength=50" if not u else "required maxlength=50") }}
+    {{ select(f, "rodzaj", "Rodzaj umowy", opcje(rodzaje_umow)) }}
+    {% set lok = [] %}{% for l in lokale_opcje %}{% set _ = lok.append((l.id, l.nazwa ~ ' — ' ~ l.ulica ~ ('/' ~ l.nr_lokalu if l.nr_lokalu else ''))) %}{% endfor %}
+    {{ select(f, "lokal_id", "Lokal", lok) }}
+    {% set kl = [] %}{% for k in klienci_opcje %}{% set _ = kl.append((k.id, (k.full_name or k.login) ~ ' (' ~ k.login ~ ')')) %}{% endfor %}
+    {% if u and not (klienci_opcje|selectattr('id', 'equalto', u.najemca_id)|list) %}{% set _ = kl.append((u.najemca_id, (u.najemca_nazwa or u.najemca_login) ~ ' (zablokowany)')) %}{% endif %}
+    {{ select(f, "najemca_id", "Najemca", kl) }}
+  </div>
+
+  <h2>Okres najmu</h2>
+  <div class="form-grid">
+    {{ field(f, "data_zawarcia", "Data zawarcia", type="date", attrs="required") }}
+    {{ field(f, "data_od", "Najem od", type="date", attrs="required") }}
+    {{ field(f, "data_do", "Najem do", type="date", hint="Domyślnie rok od początku najmu; puste = czas nieokreślony") }}
+    {{ field(f, "rozwiazana_dnia", "Wcześniej rozwiązana dnia", type="date", hint="Wypełnij tylko przy zerwaniu umowy przed terminem") }}
+  </div>
+
+  <h2>Opłaty</h2>
+  <div class="form-grid">
+    {{ field(f, "czynsz", "Czynsz (zł)", hint="np. 3200 lub 3 200,50", attrs='inputmode="decimal" required') }}
+    {{ field(f, "oplaty", "Opłaty / zaliczki (zł)", attrs='inputmode="decimal"') }}
+    {{ field(f, "kaucja", "Kaucja (zł)", attrs='inputmode="decimal"') }}
+    {{ field(f, "dzien_platnosci", "Dzień płatności", type="number", hint="Dzień miesiąca, 1–31", attrs="min=1 max=31 required") }}
+    {{ field(f, "wypowiedzenie", "Okres wypowiedzenia", hint="np. 1 miesiąc") }}
+    {{ field(f, "liczba_osob", "Liczba osób", type="number", hint="Do naliczania opłaty za śmieci", attrs="min=1 max=20 required") }}
+  </div>
+  {{ area(f, "uwagi", "Uwagi", hint="Widoczne dla najemcy", rows=3) }}
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ 'Zapisz zmiany' if u else 'Dodaj umowę' }}</button>
+    <a href="{{ url_for('zarzadca.umowy') }}">Anuluj</a>
+  </div>
+</form>
+
+{% if not u %}
+<script>
+/* Podpowiedzi przy nowej umowie: numer wg rodzaju, koniec = rok od początku,
+   kwoty z poprzedniej umowy lokalu. Pól zmienionych ręcznie nie nadpisujemy. */
+(function () {
+  const form = document.querySelector("form.form");
+  const el = n => form.elements[n];
+  const recznie = new Set();
+  ["numer", "data_do", "czynsz", "oplaty", "kaucja", "dzien_platnosci", "wypowiedzenie"].forEach(n =>
+    el(n).addEventListener("input", () => recznie.add(n)));
+
+  function proponuj(n, v) {
+    if (v === undefined || recznie.has(n)) return;
+    const f = el(n);
+    if (f.value === v) return;
+    f.value = v;
+    f.classList.remove("suggested"); void f.offsetWidth; f.classList.add("suggested");
+  }
+
+  let req = 0;
+  async function sugestie(zLokalu) {
+    const p = new URLSearchParams({
+      rodzaj: el("rodzaj").value, od: el("data_od").value,
+      rok: (el("data_zawarcia").value || "").slice(0, 4), lokal: el("lokal_id").value });
+    const my = ++req;
+    try {
+      const r = await fetch("{{ url_for('zarzadca.umowa_sugestie') }}?" + p, { credentials: "same-origin" });
+      if (!r.ok || my !== req) return;
+      const s = await r.json();
+      proponuj("numer", s.numer);
+      proponuj("data_do", s.data_do);
+      if (zLokalu && s.czynsz !== undefined)
+        ["czynsz", "oplaty", "kaucja", "dzien_platnosci", "wypowiedzenie"].forEach(n => proponuj(n, s[n]));
+    } catch (e) { /* bez podpowiedzi — formularz działa normalnie */ }
+  }
+
+  el("rodzaj").addEventListener("change", () => sugestie(false));
+  el("data_zawarcia").addEventListener("change", () => sugestie(false));
+  el("data_od").addEventListener("change", () => sugestie(false));
+  el("lokal_id").addEventListener("change", () => sugestie(true));
+})();
+</script>
+{% endif %}
+
+{% if u %}
+<section class="panel-box" id="aneksy">
+  <h2>Aneksy</h2>
+  {% if aneksy %}
+  <ol class="timeline">
+  {% for a in aneksy %}
+    <li><span class="muted small">{{ a.data|data }}</span><strong>{{ a.numer }}</strong><span>{{ a.opis }}</span>
+      <div>{{ delete_button(url_for('zarzadca.aneks_usun', aid=a.id), 'Usuń', 'Usunąć ' ~ a.numer ~ '?') }}</div></li>
+  {% endfor %}
+  </ol>
+  {% else %}<p class="muted">Brak aneksów.</p>{% endif %}
+
+  <details class="add-box" {% if not aneksy %}open{% endif %}>
+    <summary>+ Dodaj aneks</summary>
+    <form method="post" action="{{ url_for('zarzadca.aneks_dodaj', uid=u.id) }}" class="form">
+      {{ csrf() }}
+      <div class="form-grid">
+        <label class="field">Numer<input name="numer" value="Aneks nr {{ aneksy|length + 1 }}" required maxlength=50></label>
+        <label class="field">Data<input name="data" type="date" value="{{ today }}" required></label>
+      </div>
+      <label class="field field-wide">Opis zmian<textarea name="opis" rows="3" required></textarea></label>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Dodaj aneks</button></div>
+    </form>
+  </details>
+</section>
+
+<div class="danger-zone">
+  {{ delete_button(url_for('zarzadca.umowa_usun', uid=u.id), 'Usuń umowę', 'Usunąć umowę ' ~ u.numer ~ ' razem z aneksami? Tej operacji nie można cofnąć.') }}
+</div>
+{% endif %}
+{% endblock %}

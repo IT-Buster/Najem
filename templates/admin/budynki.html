@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block title %}Budynki{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Budynki</h1><p class="muted">Faktury za media i liczniki główne rozliczane są osobno dla każdego budynku</p></div>
+  <div class="actions"><a class="btn btn-primary" href="{{ url_for('zarzadca.budynek_nowy') }}">+ Dodaj budynek</a></div>
+</div>
+
+{% if rows %}
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Budynek</th><th class="num">Lokale</th><th class="num">Faktury</th><th></th></tr></thead>
+  <tbody>{% for b in rows %}
+    <tr>
+      <td data-label="Budynek"><a href="{{ url_for('zarzadca.budynek_edycja', bid=b.id) }}"><strong>{{ b.nazwa }}</strong></a>
+        {% if b.ulica or b.miasto %}<br><span class="muted small">{{ b.ulica or '' }}{% if b.ulica and b.miasto %}, {% endif %}{{ b.kod or '' }} {{ b.miasto or '' }}</span>{% endif %}</td>
+      <td data-label="Lokale" class="num">{{ b.lokale_n }}</td>
+      <td data-label="Faktury" class="num">{{ b.faktury_n }}</td>
+      <td data-label="">
+        <a href="{{ url_for('zarzadca.liczniki', b=b.id) }}">Liczniki</a> ·
+        <a href="{{ url_for('zarzadca.faktury', b=b.id) }}">Faktury</a></td>
+    </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}
+<div class="placeholder"><strong>Brak budynków</strong><span>Dodaj budynek, aby rozliczać wodę i ciepło według liczników.</span></div>
+{% endif %}
+
+{% if bez %}
+<section class="panel-box">
+  <h2>Lokale bez budynku</h2>
+  <p class="muted small">Te lokale nie mają rozliczania wody i ciepła z liczników (np. lokale z ryczałtem). Przypiszesz je w edycji budynku albo lokalu.</p>
+  <ul>{% for l in bez %}<li><a href="{{ url_for('zarzadca.lokal_edycja', lid=l.id) }}">{{ l.nazwa }}</a> <span class="muted small">{{ l.ulica }}{% if l.nr_lokalu %}/{{ l.nr_lokalu }}{% endif %}, {{ l.miasto }}</span></li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% endblock %}

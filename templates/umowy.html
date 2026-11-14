@@ -1,0 +1,33 @@
+{% extends "panel.html" %}
+{% from "_macros.html" import adres, status_line %}
+{% block title %}Umowy{% endblock %}
+{% block content %}
+<h1>Umowy</h1>
+<p class="muted">Twoje umowy najmu — aktualne i archiwalne.</p>
+
+{% if not umowy %}
+  <div class="placeholder">
+    <strong>Brak umów</strong>
+    <span>Nie masz jeszcze żadnej umowy najmu.</span>
+  </div>
+{% else %}
+<div class="table-wrap">
+<table class="table">
+  <thead>
+    <tr><th>Numer</th><th>Lokal</th><th>Okres najmu</th><th class="num">Czynsz + opłaty</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+  {% for u in umowy %}
+    <tr>
+      <td data-label="Numer"><a href="{{ url_for('umowa', uid=u.id) }}"><strong>{{ u.numer }}</strong></a><br><span class="muted small">{{ u.rodzaj }}</span></td>
+      <td data-label="Lokal">{{ u.lokal_nazwa }}<br><span class="muted small">{{ adres(u) }}</span></td>
+      <td data-label="Okres najmu">{{ u.data_od|data }} –<br>{{ (u.rozwiazana_dnia or u.data_do)|data if (u.rozwiazana_dnia or u.data_do) else 'czas nieokreślony' }}</td>
+      <td data-label="Czynsz + opłaty" class="num">{{ (u.czynsz + u.oplaty)|zl }}<br><span class="muted small">miesięcznie</span></td>
+      <td data-label="Status">{{ status_line(u) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

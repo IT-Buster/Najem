@@ -1,0 +1,34 @@
+{% extends base_tpl %}
+{% from "admin/_form.html" import csrf, delete_button %}
+{% from "_kwit.html" import kartka %}
+{% block title %}Zawiadomienie {{ krotko(n.okres_czynsz) }} · {{ u.lokal_nazwa }}{% endblock %}
+{% block content %}
+<nav class="crumbs no-print"><a href="{{ wstecz }}">{{ 'Rozliczenia' if base_tpl.startswith('admin') else 'Płatności' }}</a> / {{ n.okres_czynsz|okres }}</nav>
+
+<div class="page-head no-print">
+  <div>
+    <h1>{% if podglad %}Podgląd zawiadomienia{% else %}Zawiadomienie o wysokości opłat{% endif %}</h1>
+    <p class="muted">{{ u.lokal_nazwa }} · {{ u.numer }}</p>
+  </div>
+  <div class="actions">
+    {% if podglad %}
+      <form method="post" action="{{ url_for('zarzadca.rozliczenia_wystaw') }}" class="inline">
+        {{ csrf() }}<input type="hidden" name="okres" value="{{ n.okres_czynsz }}"><input type="hidden" name="umowa_id" value="{{ u.id }}">
+        <button class="btn btn-primary" type="submit">Wystaw</button>
+      </form>
+    {% else %}
+      <button class="btn btn-primary" type="button" onclick="window.print()">Drukuj (oryginał + kopia)</button>
+    {% endif %}
+  </div>
+</div>
+
+{% for m in uwagi %}<div class="flash flash-err no-print">{{ m }}</div>{% endfor %}
+
+{{ kartka(u, n, pozycje, rachunek, podglad) }}
+
+{% if not podglad and base_tpl.startswith('admin') %}
+<div class="danger-zone no-print">
+  {{ delete_button(url_for('zarzadca.rozliczenie_usun', nid=n.id), 'Cofnij zawiadomienie', 'Cofnąć to zawiadomienie? Będzie można je wystawić ponownie z aktualnych danych.') }}
+</div>
+{% endif %}
+{% endblock %}

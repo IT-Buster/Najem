@@ -1,0 +1,55 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import field, area, select, csrf, delete_button %}
+{% from "_macros.html" import badge %}
+{% block title %}{{ l.nazwa if l else 'Nowy lokal' }}{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('zarzadca.lokale') }}">Lokale</a> / {{ l.nazwa if l else 'Nowy' }}</nav>
+<div class="page-head">
+  <h1>{{ l.nazwa if l else 'Nowy lokal' }}</h1>
+  {% if l %}<div class="actions"><a class="btn btn-primary" href="{{ url_for('zarzadca.umowa_nowa', lokal=l.id) }}">+ Umowa dla tego lokalu</a></div>{% endif %}
+</div>
+
+<form method="post" class="panel-box form" novalidate>
+  {{ csrf() }}
+  <div class="form-grid">
+    {{ field(f, "nazwa", "Nazwa", hint="Krótka nazwa, np. „Mieszkanie Mokotów”", attrs="required maxlength=120") }}
+    {{ select(f, "budynek_id", "Budynek", budynki_opcje, hint="Do rozliczania wody i ciepła z liczników budynku") }}
+    {{ select(f, "rodzaj", "Rodzaj", opcje(rodzaje_lokali)) }}
+    {{ field(f, "ulica", "Ulica i numer budynku", attrs="required") }}
+    {{ field(f, "nr_lokalu", "Nr lokalu") }}
+    {{ field(f, "kod", "Kod pocztowy", hint="00-000", attrs='inputmode="numeric" required maxlength=6') }}
+    {{ field(f, "miasto", "Miasto", attrs="required") }}
+    {{ field(f, "powierzchnia", "Powierzchnia (m²)", attrs='inputmode="decimal"') }}
+    {{ field(f, "pokoje", "Liczba pokoi", type="number", attrs='min=0 max=50') }}
+    {{ field(f, "pietro", "Piętro", hint="np. 3 z 6 (winda)") }}
+    {{ field(f, "nr_wodomierza", "Nr wodomierza") }}
+    {{ field(f, "nr_cieplomierza", "Nr ciepłomierza") }}
+  </div>
+  {{ area(f, "opis", "Opis", rows=3) }}
+  {{ area(f, "wyposazenie", "Wyposażenie", hint="Każda pozycja w osobnej linii", rows=6) }}
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ 'Zapisz zmiany' if l else 'Dodaj lokal' }}</button>
+    <a href="{{ url_for('zarzadca.lokale') }}">Anuluj</a>
+  </div>
+</form>
+
+{% if l %}
+<section class="panel-box">
+  <h2>Umowy</h2>
+  {% if umowy %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Numer</th><th>Najemca</th><th>Okres</th><th>Status</th></tr></thead>
+    <tbody>{% for u in umowy %}
+      <tr><td data-label="Numer"><a href="{{ url_for('zarzadca.umowa_edycja', uid=u.id) }}">{{ u.numer }}</a></td>
+          <td data-label="Najemca">{{ u.najemca_nazwa or u.najemca_login }}</td>
+          <td data-label="Okres">{{ u.data_od|data }} – {{ (u.rozwiazana_dnia or u.data_do)|data if (u.rozwiazana_dnia or u.data_do) else 'czas nieokreślony' }}</td>
+          <td data-label="Status">{{ badge(u) }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+    <p class="muted">Ten lokal nie ma jeszcze umów.</p>
+    <div class="danger-zone">{{ delete_button(url_for('zarzadca.lokal_usun', lid=l.id), 'Usuń lokal', 'Usunąć ten lokal? Tej operacji nie można cofnąć.') }}</div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

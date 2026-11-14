@@ -1,0 +1,30 @@
+{% extends "panel.html" %}
+{% block title %}Liczniki i media{% endblock %}
+{% block content %}
+<h1>Liczniki i media</h1>
+<p class="muted">Odczyty liczników z początku każdego miesiąca i zużycie</p>
+
+{% for d in dane %}
+<section class="panel-box">
+  <h2>{{ d.l.nazwa }}</h2>
+  {% if d.l.nr_wodomierza or d.l.nr_cieplomierza %}
+  <p class="muted small">{% if d.l.nr_cieplomierza %}Ciepłomierz: {{ d.l.nr_cieplomierza }}{% endif %}{% if d.l.nr_cieplomierza and d.l.nr_wodomierza %} · {% endif %}{% if d.l.nr_wodomierza %}Wodomierz: {{ d.l.nr_wodomierza }}{% endif %}</p>
+  {% endif %}
+  {% if d.hist %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Odczyt</th><th class="num">Ciepłomierz</th><th class="num">Wodomierz</th><th>Zużycie za</th><th class="num">Ciepło</th><th class="num">Woda</th></tr></thead>
+    <tbody>{% for h in d.hist %}
+      <tr><td data-label="Odczyt"><strong>{{ (h.o.data or h.o.okres ~ '-01')|data }}</strong></td>
+          <td data-label="Ciepłomierz" class="num">{{ h.o.cieplo|liczba(3) }} GJ</td>
+          <td data-label="Wodomierz" class="num">{{ h.o.woda|liczba(2) }} m³</td>
+          <td data-label="Zużycie za">{{ h.za|okres }}</td>
+          <td data-label="Ciepło" class="num">{{ h.z.cieplo|liczba(3) }} GJ</td>
+          <td data-label="Woda" class="num">{{ h.z.woda|liczba(2) }} m³</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">Brak odczytów dla tego lokalu.</p>{% endif %}
+</section>
+{% else %}
+<div class="placeholder"><strong>Brak lokali</strong><span>Nie masz jeszcze żadnego lokalu.</span></div>
+{% endfor %}
+{% endblock %}

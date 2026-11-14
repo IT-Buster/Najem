@@ -1,0 +1,8 @@
+{% extends "panel.html" %}
+{% block home_url %}{{ url_for('zarzadca.pulpit') }}{% endblock %}
+{% block brand_suffix %} <span class="role-tag">Zarządca</span>{% endblock %}
+{% block nav %}
+{% for key, label in admin_menu %}
+  <li><a href="{{ url_for('zarzadca.' ~ key) }}" {% if key == active %}aria-current="page"{% endif %}>{{ label }}</a></li>
+{% endfor %}
+{% endblock %}

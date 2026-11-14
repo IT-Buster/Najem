@@ -1,0 +1,50 @@
+{% extends "panel.html" %}
+{% from "_macros.html" import adres, status_line %}
+{% block title %}Umowa {{ u.numer }}{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('umowy') }}">Umowy</a> / {{ u.numer }}</nav>
+<h1>Umowa {{ u.numer }}</h1>
+<p>{{ status_line(u) }}</p>
+
+<div class="stats">
+  <div class="stat"><span>Czynsz</span><strong>{{ u.czynsz|zl }}</strong></div>
+  <div class="stat"><span>Opłaty / zaliczki</span><strong>{{ u.oplaty|zl }}</strong></div>
+  <div class="stat stat-accent"><span>Razem miesięcznie</span><strong>{{ (u.czynsz + u.oplaty)|zl }}</strong></div>
+  <div class="stat"><span>Kaucja</span><strong>{{ u.kaucja|zl }}</strong></div>
+</div>
+
+<div class="grid-2">
+  <section class="panel-box">
+    <h2>Warunki umowy</h2>
+    <dl class="kv">
+      <dt>Rodzaj</dt><dd>{{ u.rodzaj|capitalize }}</dd>
+      <dt>Zawarta</dt><dd>{{ u.data_zawarcia|data }}</dd>
+      <dt>Najem od</dt><dd>{{ u.data_od|data }}</dd>
+      <dt>Najem do</dt><dd>{{ u.data_do|data if u.data_do else 'czas nieokreślony' }}</dd>
+      {% if u.rozwiazana_dnia %}<dt>Rozwiązana</dt><dd>{{ u.rozwiazana_dnia|data }}</dd>{% endif %}
+      <dt>Termin płatności</dt><dd>do {{ u.dzien_platnosci }}. dnia każdego miesiąca</dd>
+      <dt>Wypowiedzenie</dt><dd>{{ u.wypowiedzenie or '—' }}</dd>
+    </dl>
+  </section>
+
+  <section class="panel-box">
+    <h2>Lokal</h2>
+    <p><a href="{{ url_for('lokal', lid=u.lokal_id) }}"><strong>{{ u.lokal_nazwa }}</strong></a><br>
+       <span class="muted">{{ adres(u) }}</span></p>
+    {% if u.uwagi %}<h3>Uwagi</h3><p class="desc">{{ u.uwagi }}</p>{% endif %}
+  </section>
+</div>
+
+<section class="panel-box">
+  <h2>Aneksy</h2>
+  {% if aneksy %}
+    <ol class="timeline">
+    {% for a in aneksy %}
+      <li><span class="muted small">{{ a.data|data }}</span><strong>{{ a.numer }}</strong><span>{{ a.opis }}</span></li>
+    {% endfor %}
+    </ol>
+  {% else %}
+    <p class="muted">Do tej umowy nie ma aneksów.</p>
+  {% endif %}
+</section>
+{% endblock %}

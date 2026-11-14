@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import field, csrf %}
+{% block title %}Ustawienia{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Ustawienia</h1><p class="muted">Domyślne stawki — obowiązują w budynkach, które nie mają własnych</p></div>
+</div>
+
+<form method="post" class="panel-box form" novalidate autocomplete="off">
+  {{ csrf() }}
+  <h2>Domyślne opłaty stałe</h2>
+  <div class="form-grid">
+    {% for k, label, _, hint, typ in pola if typ == 'money' %}
+      {{ field(f, k, label ~ ' (zł)', hint=hint, attrs='inputmode="decimal"') }}
+    {% endfor %}
+  </div>
+  <h2>Zawiadomienie</h2>
+  <div class="form-grid">
+    {% for k, label, _, hint, typ in pola if typ == 'text' %}
+      {{ field(f, k, label, hint=hint ~ ' — domyślny, budynek może mieć własny') }}
+    {% endfor %}
+  </div>
+  <p class="muted small">Stawki dla konkretnego budynku (np. inna opłata za śmieci w innej gminie) ustawisz w <a href="{{ url_for('zarzadca.budynki') }}">Budynkach</a>. Liczbę lokali do podziału opłaty przesyłowej ustawia się w budynku.</p>
+  <p class="muted small">Opłaty stałe i media naliczane są dla umów z polem „Opłaty / zaliczki” równym 0. Umowa z kwotą w tym polu dostaje ją jako ryczałt — bez rozliczania liczników.</p>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Zapisz ustawienia</button></div>
+</form>
+{% endblock %}

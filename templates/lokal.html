@@ -1,0 +1,51 @@
+{% extends "panel.html" %}
+{% from "_macros.html" import adres, badge %}
+{% block title %}{{ l.nazwa }}{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="{{ url_for('lokale') }}">Moje lokale</a> / {{ l.nazwa }}</nav>
+<h1>{{ l.nazwa }}</h1>
+<p class="muted">{{ adres(l) }}</p>
+
+<div class="grid-2">
+  <section class="panel-box">
+    <h2>Dane lokalu</h2>
+    <dl class="kv">
+      <dt>Rodzaj</dt><dd>{{ l.rodzaj|capitalize }}</dd>
+      <dt>Adres</dt><dd>{{ adres(l) }}</dd>
+      <dt>Powierzchnia</dt><dd>{{ l.powierzchnia|m2 }}</dd>
+      <dt>Liczba pokoi</dt><dd>{{ l.pokoje or '—' }}</dd>
+      <dt>Piętro</dt><dd>{{ l.pietro or '—' }}</dd>
+    </dl>
+    {% if l.opis %}<p class="desc">{{ l.opis }}</p>{% endif %}
+  </section>
+
+  <section class="panel-box">
+    <h2>Wyposażenie</h2>
+    {% set items = (l.wyposazenie or '').splitlines() | select | list %}
+    {% if items %}
+      <ul class="checklist">{% for i in items %}<li>{{ i }}</li>{% endfor %}</ul>
+    {% else %}
+      <p class="muted">Brak spisu wyposażenia.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="panel-box">
+  <h2>Umowy dla tego lokalu</h2>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Numer</th><th>Okres</th><th>Czynsz</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for u in umowy %}
+      <tr>
+        <td data-label="Numer"><a href="{{ url_for('umowa', uid=u.id) }}">{{ u.numer }}</a></td>
+        <td data-label="Okres">{{ u.data_od|data }} – {{ (u.rozwiazana_dnia or u.data_do)|data if (u.rozwiazana_dnia or u.data_do) else 'czas nieokreślony' }}</td>
+        <td data-label="Czynsz" class="num">{{ u.czynsz|zl }}</td>
+        <td data-label="Status">{{ badge(u) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

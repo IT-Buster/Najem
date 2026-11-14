@@ -1,0 +1,62 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import csrf %}
+{% block title %}Rozliczenia {{ okres|okres }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Rozliczenia</h1>
+    <p class="muted">Czynsz za {{ okres|okres }} · media za {{ poprzedni(okres)|okres }}</p>
+  </div>
+  <div class="actions">
+    {% if wiersze|selectattr('n')|list %}<a class="btn btn-ghost" href="{{ url_for('zarzadca.rozliczenia_druk', okres=okres) }}">Drukuj kwity</a>{% endif %}
+  {% if do_wystawienia %}
+    <form method="post" action="{{ url_for('zarzadca.rozliczenia_wystaw') }}" class="inline"
+          onsubmit="return confirm('Wystawić {{ do_wystawienia }} zawiadomień za {{ okres|okres }}? Kwoty zostaną zapisane na stałe.')">
+      {{ csrf() }}<input type="hidden" name="okres" value="{{ okres }}">
+      <button class="btn btn-primary" type="submit">Wystaw wszystkie ({{ do_wystawienia }})</button>
+    </form>
+  {% endif %}
+  </div>
+</div>
+
+<form class="toolbar month-nav" method="get">
+  <a class="btn btn-ghost btn-sm" href="{{ url_for('zarzadca.rozliczenia', okres=poprzedni(okres)) }}" aria-label="Poprzedni miesiąc">←</a>
+  <input type="month" name="okres" value="{{ okres }}" aria-label="Miesiąc" onchange="this.form.submit()">
+  <a class="btn btn-ghost btn-sm" href="{{ url_for('zarzadca.rozliczenia', okres=nastepny(okres)) }}" aria-label="Następny miesiąc">→</a>
+</form>
+
+{% if wiersze %}
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Umowa</th><th>Najemca</th><th class="num">Należność</th><th class="num">Saldo</th><th class="num">Do zapłaty</th><th>Stan</th></tr></thead>
+  <tbody>
+  {% for w in wiersze %}{% set u = w.u %}{% set d = w.n or w.r %}
+    <tr>
+      <td data-label="Umowa"><strong>{{ u.lokal_nazwa }}</strong><br><span class="muted small">{{ u.numer }}{% if w.b %} · {{ w.b }}{% endif %}</span></td>
+      <td data-label="Najemca">{{ u.najemca_nazwa or u.najemca_login }}</td>
+      <td data-label="Należność" class="num">{{ d.suma_pozycji|zl }}</td>
+      <td data-label="Saldo" class="num">{{ d.saldo|zl }}</td>
+      <td data-label="Do zapłaty" class="num"><strong>{{ d.do_zaplaty|zl }}</strong></td>
+      <td data-label="Stan">
+        {% if w.n %}
+          <span class="badge badge-aktywna">Wystawione</span>
+          <span class="muted small">{{ w.n.data_wystawienia|data }}</span><br>
+          <a href="{{ url_for('zarzadca.rozliczenie', nid=w.n.id) }}">Zobacz</a>
+        {% else %}
+          <span class="badge badge-przyszla">Do wystawienia</span>
+          {% if w.r.uwagi %}<span class="badge badge-konczy" title="{{ w.r.uwagi|join(' ') }}">{{ w.r.uwagi|length }} uwag{{ 'a' if w.r.uwagi|length == 1 else 'i' }}</span>{% endif %}<br>
+          <a href="{{ url_for('zarzadca.rozliczenie_podglad', uid=u.id, okres=okres) }}">Podgląd</a>
+          <form method="post" action="{{ url_for('zarzadca.rozliczenia_wystaw') }}" class="inline">
+            {{ csrf() }}<input type="hidden" name="okres" value="{{ okres }}"><input type="hidden" name="umowa_id" value="{{ u.id }}">
+            <button class="linkbtn" type="submit">Wystaw</button>
+          </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="muted small">Przed wystawieniem uzupełnij <a href="{{ url_for('zarzadca.liczniki', okres=okres) }}">odczyty liczników</a> na {{ (okres ~ '-01')|data }} i <a href="{{ url_for('zarzadca.faktury') }}">faktury</a> za {{ poprzedni(okres)|okres }}. Wystawione zawiadomienie ma zapisane kwoty — późniejsze zmiany odczytów go nie zmienią (można je cofnąć i wystawić ponownie).</p>
+{% else %}
+<div class="placeholder"><strong>Brak umów w tym miesiącu</strong><span>Żadna umowa nie obowiązuje w {{ okres|okres }}.</span></div>
+{% endif %}
+{% endblock %}

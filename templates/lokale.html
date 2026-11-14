@@ -1,0 +1,32 @@
+{% extends "panel.html" %}
+{% from "_macros.html" import adres, status_line %}
+{% block title %}Moje lokale{% endblock %}
+{% block content %}
+<h1>Moje lokale</h1>
+<p class="muted">Lokale, które wynajmujesz lub wynajmowałeś.</p>
+
+{% if not rows %}
+  <div class="placeholder">
+    <strong>Brak lokali</strong>
+    <span>Nie masz jeszcze żadnej umowy najmu. Jeśli to błąd, skontaktuj się z zarządcą.</span>
+  </div>
+{% else %}
+<div class="cards">
+  {% for l, u in rows %}
+  <a class="tile" href="{{ url_for('lokal', lid=l.id) }}">
+    <div class="tile-head">
+      <span class="kind">{{ l.rodzaj|capitalize }}</span>
+      {{ status_line(u) }}
+    </div>
+    <h2>{{ l.nazwa }}</h2>
+    <p class="muted">{{ adres(l) }}</p>
+    <dl class="facts">
+      <div><dt>Powierzchnia</dt><dd>{{ l.powierzchnia|m2 }}</dd></div>
+      <div><dt>Pokoje</dt><dd>{{ l.pokoje or '—' }}</dd></div>
+      <div><dt>Czynsz</dt><dd>{{ u.czynsz|zl }}</dd></div>
+    </dl>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

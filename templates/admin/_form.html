@@ -1,0 +1,33 @@
+{# Pola formularza z komunikatem błędu. f = obiekt Form #}
+{% macro field(f, name, label, type="text", hint=None, attrs="") -%}
+<label class="field{% if f.errors[name] %} has-error{% endif %}">{{ label }}
+  <input name="{{ name }}" type="{{ type }}" value="{{ f.raw.get(name, '') if f.raw.get(name) is not none else '' }}" {{ attrs|safe }}>
+  {% if f.errors[name] %}<span class="err">{{ f.errors[name] }}</span>{% elif hint %}<span class="hint">{{ hint }}</span>{% endif %}
+</label>
+{%- endmacro %}
+
+{% macro area(f, name, label, hint=None, rows=4) -%}
+<label class="field field-wide{% if f.errors[name] %} has-error{% endif %}">{{ label }}
+  <textarea name="{{ name }}" rows="{{ rows }}">{{ f.raw.get(name, '') or '' }}</textarea>
+  {% if f.errors[name] %}<span class="err">{{ f.errors[name] }}</span>{% elif hint %}<span class="hint">{{ hint }}</span>{% endif %}
+</label>
+{%- endmacro %}
+
+{% macro select(f, name, label, options, hint=None) -%}
+{# options: lista (wartość, etykieta) #}
+<label class="field{% if f.errors[name] %} has-error{% endif %}">{{ label }}
+  <select name="{{ name }}">
+    <option value="">— wybierz —</option>
+    {% for v, t in options %}<option value="{{ v }}" {% if (f.raw.get(name)|string) == (v|string) %}selected{% endif %}>{{ t }}</option>{% endfor %}
+  </select>
+  {% if f.errors[name] %}<span class="err">{{ f.errors[name] }}</span>{% elif hint %}<span class="hint">{{ hint }}</span>{% endif %}
+</label>
+{%- endmacro %}
+
+{% macro csrf() %}<input type="hidden" name="_csrf" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro delete_button(action, label, question) -%}
+<form method="post" action="{{ action }}" class="inline" onsubmit="return confirm('{{ question }}')">
+  {{ csrf() }}<button class="btn btn-danger btn-sm" type="submit">{{ label }}</button>
+</form>
+{%- endmacro %}

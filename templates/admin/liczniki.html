@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import csrf %}
+{% block title %}Odczyty liczników{% endblock %}
+{% macro val(w, k) -%}
+{%- if form is not none -%}{{ form.get(k ~ '_' ~ w.l.id, '') }}{%- elif w.o and w.o[k] is not none -%}{{ ('%g' % w.o[k])|replace('.', ',') }}{%- endif -%}
+{%- endmacro %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Odczyty liczników</h1>
+    <p class="muted">{% if b %}{{ b.nazwa }} · {% endif %}stan na {{ (okres ~ '-01')|data }} — zużycie za {{ poprzedni(okres)|okres }}</p></div>
+</div>
+{% if b is none %}
+<div class="placeholder"><strong>Brak budynków</strong><span>Liczniki należą do budynku. <a href="{{ url_for('zarzadca.budynek_nowy') }}">Dodaj budynek</a>.</span></div>
+{% else %}
+<form class="toolbar month-nav" method="get">
+  {% if budynki|length > 1 %}
+  <select name="b" aria-label="Budynek" onchange="this.form.submit()">
+    {% for x in budynki %}<option value="{{ x.id }}" {% if x.id == b.id %}selected{% endif %}>{{ x.nazwa }}</option>{% endfor %}
+  </select>
+  {% else %}<input type="hidden" name="b" value="{{ b.id }}">{% endif %}
+  <a class="btn btn-ghost btn-sm" href="{{ url_for('zarzadca.liczniki', okres=poprzedni(okres), b=b.id) }}" aria-label="Poprzedni miesiąc">←</a>
+  <input type="month" name="okres" value="{{ okres }}" aria-label="Miesiąc" onchange="this.form.submit()">
+  <a class="btn btn-ghost btn-sm" href="{{ url_for('zarzadca.liczniki', okres=nastepny(okres), b=b.id) }}" aria-label="Następny miesiąc">→</a>
+</form>
+
+<form method="post" class="panel-box form" novalidate>
+  {{ csrf() }}<input type="hidden" name="okres" value="{{ okres }}"><input type="hidden" name="b" value="{{ b.id }}">
+  <label class="field field-date{% if bledy.data %} has-error{% endif %}">Data odczytu
+    <input type="date" name="data" value="{{ form.get('data') if form is not none else data_odczytu }}">
+    {% if bledy.data %}<span class="err">{{ bledy.data }}</span>{% endif %}
+  </label>
+
+  <div class="table-wrap"><table class="table readings">
+    <thead><tr><th>Lokal</th><th>Ciepłomierz (GJ)</th><th>Wodomierz (m³)</th><th class="num">Zużycie za {{ krotko(poprzedni(okres)) }}</th></tr></thead>
+    <tbody>
+    {% for w in wiersze %}
+      <tr{% if w.l.glowny %} class="row-main"{% endif %}>
+        <td data-label="Lokal"><strong>{{ w.l.nazwa }}</strong>
+          {% if not w.l.glowny and (w.l.nr_wodomierza or w.l.nr_cieplomierza) %}<br><span class="muted small">{% if w.l.nr_cieplomierza %}C: {{ w.l.nr_cieplomierza }} {% endif %}{% if w.l.nr_wodomierza %}W: {{ w.l.nr_wodomierza }}{% endif %}</span>{% endif %}</td>
+        {% for k in ('cieplo', 'woda') %}{% set name = k ~ '_' ~ w.l.id %}
+        <td data-label="{{ 'Ciepłomierz' if k == 'cieplo' else 'Wodomierz' }}">
+          <input name="{{ name }}" value="{{ val(w, k) }}" inputmode="decimal" class="{% if bledy[name] %}bad{% endif %}" aria-label="{{ w.l.nazwa }} – {{ k }}">
+          <span class="muted small">poprz.: {{ (w.p[k]|liczba(3)) if w.p and w.p[k] is not none else '—' }}</span>
+          {% if bledy[name] %}<span class="err small">{{ bledy[name] }}</span>{% endif %}
+        </td>
+        {% endfor %}
+        <td data-label="Zużycie" class="num">
+          <span class="line">{{ w.z.cieplo|liczba(3) }} GJ</span><span class="line">{{ w.z.woda|liczba(2) }} m³</span>
+          {% if w.ostrz %}<span class="line"><span class="badge badge-konczy">ujemne — sprawdź</span></span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+      <tr class="row-sum">
+        <td data-label="Kontrola"><strong>Suma lokali</strong><br><span class="muted small">wobec licznika głównego</span></td>
+        <td data-label="Ciepło">{{ suma.cieplo|liczba(3) }} GJ{% if glowny.cieplo %} <span class="muted small">/ {{ glowny.cieplo|liczba(3) }}</span>{% endif %}</td>
+        <td data-label="Woda">{{ suma.woda|liczba(2) }} m³{% if glowny.woda %} <span class="muted small">/ {{ glowny.woda|liczba(2) }}</span>{% endif %}</td>
+        <td data-label="Współczynnik" class="num">{% for k, j in (('cieplo', 'ciepło'), ('woda', 'woda')) %}{% set p = podzial[k] %}
+          <span class="line">wsp. {{ j }}: {% if p.wsp is not none %}<strong>{{ p.wsp|liczba(4) }}</strong>{% else %}—{% endif %}</span>{% endfor %}</td>
+      </tr>
+    </tbody>
+  </table></div>
+  <p class="muted small">Współczynnik = zużycie z faktury (bez wody ogrodowej) ÷ suma podliczników za {{ poprzedni(okres)|okres }}. Dzięki niemu suma obciążeń lokali równa się fakturze; udział pustostanów pokrywa właściciel.</p>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">Zapisz odczyty</button>
+    <span class="muted small">Puste oba pola = brak odczytu dla lokalu.</span>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import status_line %}
+{% block title %}Pulpit zarządcy{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Pulpit</h1><p class="muted">Stan na {{ today|data }}</p></div>
+  <div class="actions">
+    <a class="btn btn-ghost" href="{{ url_for('zarzadca.klient_nowy') }}">+ Klient</a>
+    <a class="btn btn-ghost" href="{{ url_for('zarzadca.lokal_nowy') }}">+ Lokal</a>
+    <a class="btn btn-primary" href="{{ url_for('zarzadca.umowa_nowa') }}">+ Umowa</a>
+  </div>
+</div>
+
+<div class="stats">
+  <a class="stat" href="{{ url_for('zarzadca.lokale') }}"><span>Lokale</span><strong>{{ lokale_n }}</strong><small class="muted">wolnych: {{ wolne_n }}</small></a>
+  <a class="stat" href="{{ url_for('zarzadca.umowy', status='aktywna') }}"><span>Aktywne umowy</span><strong>{{ aktywne_n }}</strong></a>
+  <a class="stat" href="{{ url_for('zarzadca.klienci') }}"><span>Klienci</span><strong>{{ klienci_n }}</strong></a>
+  <div class="stat stat-accent"><span>Należności miesięcznie</span><strong>{{ przychod|zl }}</strong><small class="muted">czynsz + opłaty z aktywnych umów</small></div>
+</div>
+
+<section class="panel-box">
+  <h2>Umowy kończące się w ciągu 60 dni</h2>
+  {% if konczace %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Umowa</th><th>Lokal</th><th>Najemca</th><th>Status</th></tr></thead>
+    <tbody>{% for u in konczace %}
+      <tr><td data-label="Umowa"><a href="{{ url_for('zarzadca.umowa_edycja', uid=u.id) }}">{{ u.numer }}</a></td>
+          <td data-label="Lokal">{{ u.lokal_nazwa }}</td><td data-label="Najemca">{{ u.najemca_nazwa or u.najemca_login }}</td><td data-label="Status">{{ status_line(u) }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">Żadna umowa nie kończy się w najbliższych 60 dniach.</p>{% endif %}
+</section>
+
+{% if przyszle %}
+<section class="panel-box">
+  <h2>Umowy, które się jeszcze nie rozpoczęły</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Umowa</th><th>Lokal</th><th>Najemca</th><th>Status</th></tr></thead>
+    <tbody>{% for u in przyszle %}
+      <tr><td data-label="Umowa"><a href="{{ url_for('zarzadca.umowa_edycja', uid=u.id) }}">{{ u.numer }}</a></td>
+          <td data-label="Lokal">{{ u.lokal_nazwa }}</td><td data-label="Najemca">{{ u.najemca_nazwa or u.najemca_login }}</td><td data-label="Status">{{ status_line(u) }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

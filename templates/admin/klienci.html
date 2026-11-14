@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% block title %}Klienci{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Klienci</h1><p class="muted">Najemcy z dostępem do portalu</p></div>
+  <div class="actions"><a class="btn btn-primary" href="{{ url_for('zarzadca.klient_nowy') }}">+ Dodaj klienta</a></div>
+</div>
+
+<form class="toolbar" method="get">
+  <input name="q" value="{{ q }}" placeholder="Szukaj: nazwisko, login, e-mail, telefon" aria-label="Szukaj">
+  <button class="btn btn-ghost" type="submit">Szukaj</button>
+  {% if q %}<a href="{{ url_for('zarzadca.klienci') }}">Wyczyść</a>{% endif %}
+</form>
+
+{% if rows %}
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Klient</th><th>Kontakt</th><th class="num">Umowy</th><th>Ostatnie logowanie</th><th>Konto</th></tr></thead>
+  <tbody>
+  {% for k in rows %}
+    <tr>
+      <td data-label="Klient"><a href="{{ url_for('zarzadca.klient_edycja', kid=k.id) }}"><strong>{{ k.full_name or k.login }}</strong></a><br><span class="muted small">{{ k.login }}</span></td>
+      <td data-label="Kontakt">{{ k.email or '—' }}<br><span class="muted small">{{ k.telefon or '' }}</span></td>
+      <td data-label="Umowy" class="num">{{ k.umowy_n }}</td>
+      <td data-label="Ostatnie logowanie">{{ k.last_login_at|data if k.last_login_at else 'nigdy' }}</td>
+      <td data-label="Konto">{% if k.aktywny %}<span class="badge badge-aktywna">Aktywne</span>{% else %}<span class="badge badge-zakonczona">Zablokowane</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<div class="placeholder"><strong>Brak klientów</strong><span>{% if q %}Nic nie pasuje do wyszukiwania.{% else %}Dodaj pierwszego klienta.{% endif %}</span></div>
+{% endif %}
+{% endblock %}

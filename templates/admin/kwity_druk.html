@@ -1,0 +1,14 @@
+{% extends "admin/base.html" %}
+{% from "_kwit.html" import kartka %}
+{% block title %}Kwity {{ okres|okres }}{% endblock %}
+{% block content %}
+<nav class="crumbs no-print"><a href="{{ url_for('zarzadca.rozliczenia', okres=okres) }}">Rozliczenia</a> / {{ okres|okres }} / druk</nav>
+<div class="page-head no-print">
+  <div><h1>Kwity za {{ okres|okres }}</h1>
+    <p class="muted">{{ kwity|length }} zawiadomień · każde na osobnej kartce A4, oryginał i kopia</p></div>
+  <div class="actions">{% if kwity %}<button class="btn btn-primary" type="button" onclick="window.print()">Drukuj wszystkie</button>{% endif %}</div>
+</div>
+{% for k in kwity %}{{ kartka(k.u, k.n, k.pozycje, k.rachunek) }}{% else %}
+<div class="placeholder"><strong>Brak wystawionych zawiadomień</strong><span>Najpierw wystaw zawiadomienia za {{ okres|okres }}.</span></div>
+{% endfor %}
+{% endblock %}
