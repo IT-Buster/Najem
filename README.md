@@ -13,9 +13,25 @@ Flask + SQLite, bez frameworków front-endowych; działa na telefonie i drukuje 
 - **Odczyty liczników** — ciepłomierze i wodomierze lokali oraz liczniki główne budynku, kontrola sumy podliczników.
 - **Faktury mediów** — woda (z odliczeniem wody ogrodowej) i ciepło (z opłatami stałymi).
 - **Rozliczenia** — zawiadomienia o wysokości opłat: podgląd, wystawianie, cofanie, druk (oryginał + kopia na kartce A4).
-- **Wpłaty i salda** (+ niedopłata, − nadpłata).
+- **Wpłaty i salda** (+ niedopłata, − nadpłata) — potwierdzanie wpłaty jednym kliknięciem (kwota należna
+  już wpisana), salda w rozbiciu na rok kalendarzowy.
+- **Podatek od najmu** (ryczałt) i rejestr wydatków.
 
-**Panel najemcy** — moje lokale i umowy, płatności (zawiadomienia, wpłaty, saldo), liczniki i zużycie.
+**Panel najemcy** — pulpit (saldo, stany liczników z poprzednim odczytem, ostatnie naliczenia i wpłaty),
+moje lokale i umowy, płatności (zawiadomienia, wpłaty, saldo), podawanie odczytów liczników ze zdjęciem.
+
+## Zrzuty ekranu
+
+Dane na zrzutach pochodzą z bazy demo i są fikcyjne.
+
+| | |
+|---|---|
+| **Wpłaty** — potwierdzanie jednym kliknięciem, salda za rok<br>![Wpłaty](docs/screenshots/zarzadca-wplaty.png) | **Rozliczenia** — zawiadomienia za miesiąc<br>![Rozliczenia](docs/screenshots/zarzadca-rozliczenia.png) |
+| **Odczyty liczników** — współczynnik podziału faktury<br>![Odczyty liczników](docs/screenshots/zarzadca-liczniki.png) | **Podatek od najmu** — ryczałt miesiąc po miesiącu<br>![Podatek](docs/screenshots/zarzadca-podatek.png) |
+| **Lokale** — filtr budynku<br>![Lokale](docs/screenshots/zarzadca-lokale.png) | **Zawiadomienie o wysokości opłat** (widok najemcy)<br>![Zawiadomienie](docs/screenshots/klient-zawiadomienie.png) |
+| **Pulpit najemcy**<br>![Pulpit najemcy](docs/screenshots/klient-pulpit.png) | **Liczniki i media** — podawanie odczytu<br>![Liczniki najemcy](docs/screenshots/klient-liczniki.png) |
+
+<p align="center"><img src="docs/screenshots/telefon-pulpit.png" width="300" alt="Pulpit najemcy na telefonie"><br><em>Pulpit najemcy na telefonie</em></p>
 
 ## Zasady rozliczania mediów
 

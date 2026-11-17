@@ -313,7 +313,7 @@ details.pay summary { cursor: pointer; color: var(--accent); }
 .qp-form { display: grid; grid-template-columns: 1fr auto auto auto; gap: .6rem 1rem; align-items: center; padding: .7rem .6rem; margin: 0; }
 .qp-who { display: flex; flex-direction: column; min-width: 0; }
 .qp-badge { align-self: flex-start; margin-top: .2rem; font-size: .75rem; font-weight: 600; color: var(--danger); }
-.qp-amt { display: flex; align-items: center; gap: .3rem; }
+.qp-amt { display: flex; flex-direction: row; align-items: center; gap: .3rem; }
 .qp-amt input { width: 7.5rem; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .qp-date input { width: 9.5rem; }
 .qp-btns { display: flex; gap: .4rem; }
@@ -348,3 +348,4 @@ details.pay summary { cursor: pointer; color: var(--accent); }
 .box-head h2 { margin: 0; }
 .table tfoot th, .table tfoot td { padding: .75rem .8rem; border-top: 2px solid var(--line); text-align: left; }
 .table tfoot td.num { text-align: right; }
+.table tfoot th { border-bottom: 0; text-transform: none; letter-spacing: 0; font-size: .95rem; color: var(--text); }
