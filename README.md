@@ -61,6 +61,15 @@ Własna, pusta baza: `.venv/bin/flask --app app init-db`, a potem `.venv/bin/fla
 
 Produkcyjnie: `gunicorn -w 2 -b 0.0.0.0:8000 app:app` za reverse proxy z HTTPS (zob. `start.sh`).
 
+`autostart.sh` uruchamia to samo w tle (PID w `instance/gunicorn.pid`, log w `instance/gunicorn.log`),
+a gdy aplikacja już działa, nic nie robi. W kontenerze ustaw jako komendę startową:
+
+```sh
+sh -c '/workspace/najem/autostart.sh; exec sleep infinity'
+```
+
+Przeładowanie po zmianach w kodzie: `kill -HUP "$(cat instance/gunicorn.pid)"`.
+
 ## Dane
 
 Repozytorium zawiera wyłącznie kod i bazę demo z **fikcyjnymi** danymi. Katalog `instance/`
