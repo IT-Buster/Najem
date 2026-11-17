@@ -22,7 +22,7 @@ from flask import abort, flash, g, jsonify, redirect, render_template, request, 
 from admin import Form, _get_or_404, bp
 from app import INSTANCE, app, get_db, login_required
 from rozliczenia import (NAZWA_LICZNIKA, biezacy, budynek, glowny_id, nastepny, odczyt, okres_z_args,
-                         poprzedni, wybrany_budynek)
+                         poprzedni, wybrany_budynek, zuzycie)
 
 OKNO = timedelta(days=7)
 ZDJECIA = INSTANCE / "zdjecia"
@@ -214,6 +214,51 @@ def _ctx_najemca():
     return {"lokale_odczyt": lokale_najemcy(g.user["id"]), "moje_pomiary": moje_pomiary(g.user["id"]),
             "dzis": date.today().isoformat(), "okno_od": od.isoformat(), "okno_do": do.isoformat(),
             "w_oknie_dzis": od <= date.today() <= do}
+
+
+def stany_cyklu(uid):
+    """Na pulpit najemcy: stany liczników wprowadzone w bieżącym cyklu.
+
+    Cykl = bieżący miesiąc: liczy się odczyt z jego początku (okres = bieżący miesiąc), a gdy już trwa
+    okno podawania odczytu z końca miesiąca (okres = następny) i coś wpisano — ten nowszy.
+    Pomiary najemcy czekające na zarządcę też są pokazane (ze statusem)."""
+    db = get_db()
+    teraz = biezacy()
+    out = []
+    for l in lokale_najemcy(uid):
+        pozycje = []
+        for o in (nastepny(teraz), teraz):
+            g_ = granica(o)
+            od, do = (g_ - OKNO).isoformat(), (g_ + OKNO).isoformat()
+            o_row = odczyt(l["id"], o)
+            oczek = {r["rodzaj"]: r for r in db.execute(
+                """SELECT * FROM pomiary WHERE lokal_id=? AND status='oczekuje' AND czas BETWEEN ? AND ?
+                   ORDER BY czas, id""", (l["id"], od, do))}
+            z = zuzycie(l["id"], poprzedni(o)) if o_row else {}
+            pop = odczyt(l["id"], poprzedni(o))           # poprzedni odczyt — do porównania
+            for k in ("cieplo", "woda"):
+                pv = pop[k] if pop is not None else None
+                pd = (pop["data"] or poprzedni(o) + "-01") if pv is not None else None
+                if o_row is not None and o_row[k] is not None:
+                    pozycje.append({"rodzaj": k, "stan": o_row[k], "data": o_row["data"] or o + "-01",
+                                    "poprz": pv, "poprz_data": pd, "zuzycie": z.get(k), "status": "przyjęty"})
+                elif k in oczek:
+                    p = oczek[k]
+                    zu = Decimal(str(p["wartosc"])) - Decimal(str(pv)) if pv is not None else None
+                    pozycje.append({"rodzaj": k, "stan": p["wartosc"], "data": p["czas"][:10],
+                                    "poprz": pv, "poprz_data": pd, "zuzycie": zu, "status": "czeka na zarządcę"})
+            if pozycje:
+                break
+        out.append({"l": l, "okres": o if pozycje else teraz, "pozycje": pozycje})
+    return out
+
+
+@app.context_processor
+def _ctx_pulpit():
+    if request.endpoint != "pulpit" or g.get("user") is None:
+        return {}
+    od, do = nastepne_okno()
+    return {"stany": stany_cyklu(g.user["id"]), "okno_od": od.isoformat(), "okno_do": do.isoformat()}
 
 
 @app.get("/zdjecie/<int:pid>")

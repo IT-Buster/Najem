@@ -6,7 +6,8 @@
   <label for="nav-toggle" class="burger" aria-label="Menu">☰</label>
   <a class="brand" href="{% block home_url %}{{ url_for('panel') }}{% endblock %}"><span class="logo">N</span> Najem{% block brand_suffix %}{% endblock %}</a>
   <div class="who">
-    <span class="muted">{{ user.full_name or user.login }}</span>
+    {% if user.full_name %}<span class="muted">{{ user.full_name }}</span>{% endif %}
+    <span class="who-login" title="Zalogowano jako {{ user.login }}">{{ user.login }}</span>
     <form method="post" action="{{ url_for('logout') }}">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <button class="btn btn-ghost btn-sm" type="submit">Wyloguj</button>

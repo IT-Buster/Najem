@@ -4,13 +4,18 @@
 {% block content %}
 <div class="page-head">
   <div><h1>Lokale</h1><p class="muted">{{ rows|length }} {{ 'lokal' if rows|length == 1 else 'lokali' }}</p></div>
-  <div class="actions"><a class="btn btn-primary" href="{{ url_for('zarzadca.lokal_nowy') }}">+ Dodaj lokal</a></div>
+  <div class="actions"><a class="btn btn-primary" href="{{ url_for('zarzadca.lokal_nowy', budynek=b if b not in ('', '0') else None) }}">+ Dodaj lokal</a></div>
 </div>
 
 <form class="toolbar" method="get">
+  <select name="b" aria-label="Budynek" onchange="this.form.submit()">
+    {% for x in budynki %}<option value="{{ x.id }}" {% if b == x.id|string %}selected{% endif %}>{{ x.nazwa }}</option>{% endfor %}
+    <option value="0" {% if b == '0' %}selected{% endif %}>Bez budynku</option>
+    <option value="" {% if b == '' %}selected{% endif %}>Wszystkie budynki</option>
+  </select>
   <input name="q" value="{{ q }}" placeholder="Szukaj: nazwa, ulica, miasto" aria-label="Szukaj">
   <button class="btn btn-ghost" type="submit">Szukaj</button>
-  {% if q %}<a href="{{ url_for('zarzadca.lokale') }}">Wyczyść</a>{% endif %}
+  {% if q %}<a href="{{ url_for('zarzadca.lokale', b=b) }}">Wyczyść</a>{% endif %}
 </form>
 
 {% if rows %}

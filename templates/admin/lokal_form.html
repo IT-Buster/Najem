@@ -25,6 +25,8 @@
     {{ field(f, "nr_wodomierza", "Nr wodomierza") }}
     {{ field(f, "nr_cieplomierza", "Nr ciepłomierza") }}
   </div>
+  <label class="check"><input type="checkbox" name="swiatlo_klatka" value="1" {% if f.raw.get("swiatlo_klatka") == "1" %}checked{% endif %}>
+    Dostęp do klatki schodowej i podwórza — naliczaj „Światło – klatka schodowa, podwórze”</label>
   {{ area(f, "opis", "Opis", rows=3) }}
   {{ area(f, "wyposazenie", "Wyposażenie", hint="Każda pozycja w osobnej linii", rows=6) }}
   <div class="form-actions">

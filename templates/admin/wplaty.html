@@ -6,8 +6,57 @@
   <div><h1>Wpłaty</h1><p class="muted">Wpłaty najemców i salda rozliczeń</p></div>
 </div>
 
-<details class="panel-box add-box" {% if f.errors or filtr %}open{% endif %}>
-  <summary>+ Zapisz wpłatę</summary>
+{% set potw = do_potw|selectattr('u.id', 'equalto', filtr)|list if filtr else do_potw %}
+{% if potw %}
+<section class="panel-box quick-pay">
+  <h2>Do potwierdzenia</h2>
+  <p class="muted small">Kwota należna jest już wpisana. Kliknij <strong>Przelew</strong> albo <strong>Gotówka</strong>
+    (Enter w polu kwoty = przelew). Przy wpłacie częściowej popraw kwotę przed potwierdzeniem.</p>
+  <ul class="qp-list">
+  {% for s in potw %}
+    <li class="qp-row{% if s.po_terminie %} late{% endif %}">
+      <form method="post" action="{{ url_for('zarzadca.wplata_potwierdz') }}" class="qp-form" autocomplete="off">
+        {{ csrf() }}
+        <input type="hidden" name="umowa_id" value="{{ s.u.id }}">
+        <input type="hidden" name="saldo_bylo" value="{{ s.saldo }}">
+        <input type="hidden" name="filtr" value="{{ filtr or '' }}">
+        <div class="qp-who">
+          <strong>{{ s.u.lokal_nazwa }}</strong>
+          <span class="muted small">{{ s.u.najemca_nazwa or s.u.najemca_login }}{% if s.ost %} · zawiadomienie {{ s.ost.okres_czynsz|okres }}{% if s.ost.termin %}, termin {{ s.ost.termin|data }}{% endif %}{% endif %}</span>
+          {% if s.po_terminie %}<span class="qp-badge">po terminie</span>{% endif %}
+        </div>
+        <label class="qp-amt"><span class="sr-only">Kwota (zł)</span>
+          <input name="kwota" value="{{ s.saldo|zl_input }}" inputmode="decimal" required aria-label="Kwota dla {{ s.u.lokal_nazwa }}"><span>zł</span></label>
+        <label class="qp-date"><span class="sr-only">Data wpłaty</span>
+          <input type="date" name="data" value="{{ dzis }}" required max="{{ dzis }}" aria-label="Data wpłaty"></label>
+        <div class="qp-btns">
+          <button class="btn btn-primary btn-sm" type="submit" name="sposob" value="przelew">✓ Przelew</button>
+          <button class="btn btn-ghost btn-sm" type="submit" name="sposob" value="gotowka">✓ Gotówka</button>
+        </div>
+      </form>
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+<script>
+document.querySelectorAll('.qp-form').forEach(function (f) {
+  f.addEventListener('submit', function () {
+    setTimeout(function () { f.querySelectorAll('button').forEach(function (b) { b.disabled = true; }); }, 0);
+  });
+  var k = f.querySelector('[name=kwota]');
+  k.addEventListener('focus', function () { k.select(); });
+});
+if (window.matchMedia('(pointer: fine)').matches) {
+  var first = document.querySelector('.qp-form .btn-primary');
+  if (first) first.focus({preventScroll: true});
+}
+</script>
+{% elif salda %}
+<p class="muted">Wszystkie należności są opłacone.</p>
+{% endif %}
+
+<details class="panel-box add-box" {% if f.errors %}open{% endif %}>
+  <summary>+ Inna wpłata (ręcznie)</summary>
   <form method="post" class="form" novalidate autocomplete="off">
     {{ csrf() }}
     <div class="form-grid">
@@ -19,6 +68,17 @@
     <div class="form-actions"><button class="btn btn-primary" type="submit">Zapisz wpłatę</button></div>
   </form>
 </details>
+<script>
+(function () {
+  var należne = {{ nalezne|tojson }};
+  var form = document.querySelector('.add-box form'); if (!form) return;
+  var sel = form.querySelector('[name=umowa_id]'), kw = form.querySelector('[name=kwota]'), auto = '';
+  function wpisz() {
+    if (kw.value === '' || kw.value === auto) { auto = należne[sel.value] || ''; kw.value = auto; }
+  }
+  sel.addEventListener('change', wpisz); wpisz();
+})();
+</script>
 
 {% if salda %}
 <section class="panel-box">

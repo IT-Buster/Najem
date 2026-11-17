@@ -392,7 +392,7 @@ def oblicz(u, okres):
     if u["oplaty"]:
         poz.append((f"Opłaty eksploatacyjne – {krotko(okres)}", "ryczałt wg umowy", u["oplaty"]))
     else:
-        if s["swiatlo"]:
+        if s["swiatlo"] and lokal["swiatlo_klatka"]:     # tylko lokale z dostępem do klatki / podwórza
             poz.append(("Światło – klatka schodowa, podwórze", "", s["swiatlo"]))
         n = u["liczba_osob"] or 1
         st = s[f"smieci_{min(n, 5)}"]
@@ -848,7 +848,16 @@ def wplaty():
         wpl = db.execute("SELECT coalesce(sum(kwota),0) FROM wplaty WHERE umowa_id=?", (u["id"],)).fetchone()[0]
         if nal or wpl:
             salda.append({"u": u, "nal": nal, "wpl": wpl, "saldo": nal - wpl})
-    q = """SELECT w.*, u.numer, l.nazwa AS lokal_nazwa, coalesce(k.full_name, k.login) AS najemca
+    dziś = date.today().isoformat()
+    do_potw = []
+    for s in salda:
+        if s["saldo"] <= 0:
+            continue
+        ost = db.execute("SELECT okres_czynsz, termin FROM naliczenia WHERE umowa_id=?"
+                         " ORDER BY okres_czynsz DESC LIMIT 1", (s["u"]["id"],)).fetchone()
+        do_potw.append({**s, "ost": ost, "po_terminie": bool(ost and ost["termin"] and ost["termin"] < dziś)})
+    do_potw.sort(key=lambda s: s["u"]["lokal_nazwa"])
+    q ="""SELECT w.*, u.numer, l.nazwa AS lokal_nazwa, coalesce(k.full_name, k.login) AS najemca
            FROM wplaty w JOIN umowy u ON u.id=w.umowa_id JOIN lokale l ON l.id=u.lokal_id
            JOIN users k ON k.id=u.najemca_id"""
     args = []
@@ -857,7 +866,43 @@ def wplaty():
         args.append(filtr)
     rows = db.execute(q + " ORDER BY w.data DESC, w.id DESC LIMIT 300", args).fetchall()
     return render_template("admin/wplaty.html", active="wplaty", f=f, rows=rows, umowy=umowy,
-                           salda=salda, filtr=filtr), status
+                           salda=salda, filtr=filtr, do_potw=do_potw, dzis=dziś,
+                           nalezne={str(s['u']['id']): zl_input(s['saldo']) for s in do_potw}), status
+
+
+SPOSOBY = {"przelew": "przelew", "gotowka": "gotówka"}
+
+
+@bp.post("/wplaty/potwierdz")
+def wplata_potwierdz():
+    """Szybkie potwierdzenie wpłaty: kwota należna jest już wpisana, wystarczy jedno kliknięcie / Enter.
+    saldo_było chroni przed podwójnym zapisem (drugie kliknięcie, odświeżenie, nieaktualna strona)."""
+    db = get_db()
+    filtr = request.form.get("filtr", "")
+    f = Form(request.form)
+    uid = f.number("umowa_id", "Umowa", 1, 10**9, required=True)
+    f.date("data", "Data wpłaty")
+    kwota = f.money("kwota", "Kwota", positive=True)
+    sposob = SPOSOBY.get(request.form.get("sposob", ""))
+    u = db.execute(UMOWY_SQL + " WHERE u.id=?", (uid,)).fetchone() if uid else None
+    if not f.ok or not u or not sposob:
+        flash(next(iter(f.errors.values()), "Nie udało się potwierdzić wpłaty."), "err")
+        return redirect(url_for(".wplaty", umowa=filtr))
+    teraz = saldo(uid)
+    if str(teraz) != request.form.get("saldo_bylo", ""):
+        flash(f"{u['lokal_nazwa']}: saldo zmieniło się w międzyczasie (teraz {zl_txt(Decimal(teraz) / 100)}) — "
+              "wpłaty nie zapisano, sprawdź listę i potwierdź ponownie.", "err")
+        return redirect(url_for(".wplaty", umowa=filtr))
+    _insert("wplaty", {"umowa_id": uid, "data": f.clean["data"], "kwota": kwota, "opis": sposob})
+    db.commit()
+    reszta = teraz - kwota
+    msg = f"{u['lokal_nazwa']}: zapisano wpłatę {zl_txt(Decimal(kwota) / 100)} ({sposob})."
+    if reszta > 0:
+        msg += f" Pozostało do zapłaty {zl_txt(Decimal(reszta) / 100)}."
+    elif reszta < 0:
+        msg += f" Nadpłata {zl_txt(Decimal(-reszta) / 100)}."
+    flash(msg, "ok")
+    return redirect(url_for(".wplaty", umowa=filtr))
 
 
 @bp.post("/wplaty/<int:wid>/usun")
@@ -916,9 +961,7 @@ def _moje_umowy_ids():
     return [r[0] for r in get_db().execute("SELECT id FROM umowy WHERE najemca_id=?", (g.user["id"],))]
 
 
-@app.get("/panel/platnosci")
-@login_required
-def platnosci():
+def _platnosci_klienta(limit_zaw=None, limit_wpl=100):
     db = get_db()
     ids = _moje_umowy_ids()
     zaw, wpl, salda = [], [], []
@@ -926,9 +969,12 @@ def platnosci():
         q = ",".join("?" * len(ids))
         zaw = db.execute(f"""SELECT n.*, u.numer, l.nazwa AS lokal_nazwa FROM naliczenia n
                              JOIN umowy u ON u.id=n.umowa_id JOIN lokale l ON l.id=u.lokal_id
-                             WHERE n.umowa_id IN ({q}) ORDER BY n.okres_czynsz DESC""", ids).fetchall()
-        wpl = db.execute(f"""SELECT w.*, u.numer FROM wplaty w JOIN umowy u ON u.id=w.umowa_id
-                             WHERE w.umowa_id IN ({q}) ORDER BY w.data DESC LIMIT 100""", ids).fetchall()
+                             WHERE n.umowa_id IN ({q}) ORDER BY n.okres_czynsz DESC, n.id DESC"""
+                         + (f" LIMIT {int(limit_zaw)}" if limit_zaw else ""), ids).fetchall()
+        wpl = db.execute(f"""SELECT w.*, u.numer, l.nazwa AS lokal_nazwa FROM wplaty w
+                             JOIN umowy u ON u.id=w.umowa_id JOIN lokale l ON l.id=u.lokal_id
+                             WHERE w.umowa_id IN ({q}) ORDER BY w.data DESC, w.id DESC LIMIT {int(limit_wpl)}""",
+                         ids).fetchall()
         for uid in ids:
             if db.execute("SELECT 1 FROM naliczenia WHERE umowa_id=? UNION SELECT 1 FROM wplaty WHERE umowa_id=?",
                           (uid, uid)).fetchone():
@@ -936,8 +982,21 @@ def platnosci():
                                " WHERE u.id=?", (uid,)).fetchone()
                 salda.append({"u": u, "saldo": saldo(uid)})
     ost = db.execute("SELECT * FROM umowy WHERE najemca_id=? ORDER BY data_od DESC LIMIT 1", (g.user["id"],)).fetchone()
-    return render_template("platnosci.html", active="platnosci", zaw=zaw, wpl=wpl, salda=salda,
-                           rachunek=rachunek_umowy(ost) if ost else ust()["rachunek"])
+    return {"zaw": zaw, "wpl": wpl, "salda": salda,
+            "rachunek": rachunek_umowy(ost) if ost else ust()["rachunek"]}
+
+
+@app.get("/panel/platnosci")
+@login_required
+def platnosci():
+    return render_template("platnosci.html", active="platnosci", **_platnosci_klienta())
+
+
+@app.get("/panel/pulpit")
+@login_required
+def pulpit():
+    """Pulpit klienta: saldo, ostatnie naliczenia (zawiadomienia) i ostatnie wpłaty."""
+    return render_template("pulpit.html", active="pulpit", **_platnosci_klienta(limit_zaw=6, limit_wpl=6))
 
 
 @app.get("/panel/platnosci/<int:nid>")

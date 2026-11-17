@@ -194,11 +194,24 @@ def pulpit():
 def lokale():
     db = get_db()
     q = request.args.get("q", "").strip()
-    sql = "SELECT * FROM lokale"
-    args = []
+    budynki = db.execute("SELECT * FROM budynki ORDER BY nazwa").fetchall()
+    # filtr budynku: id, "0" = lokale bez budynku, "" = wszystkie; domyślnie Droga Łąkowa (albo pierwszy budynek)
+    b = request.args.get("b")
+    if b is None:
+        dom = next((x for x in budynki if "łąkowa" in x["nazwa"].lower()), budynki[0] if budynki else None)
+        b = str(dom["id"]) if dom else ""
+    where, args = [], []
+    if b == "0":
+        where.append("budynek_id IS NULL")
+    elif b.isdigit():
+        where.append("budynek_id = ?")
+        args.append(int(b))
+    else:
+        b = ""
     if q:
-        sql += " WHERE nazwa LIKE ? OR ulica LIKE ? OR miasto LIKE ?"
-        args = [f"%{q}%"] * 3
+        where.append("(nazwa LIKE ? OR ulica LIKE ? OR miasto LIKE ?)")
+        args += [f"%{q}%"] * 3
+    sql = "SELECT * FROM lokale" + (" WHERE " + " AND ".join(where) if where else "")
     rows = db.execute(sql + " ORDER BY nazwa", args).fetchall()
     umowy = db.execute(UMOWY_SQL).fetchall()
     biezaca = {}
@@ -206,7 +219,8 @@ def lokale():
         s = status_umowy(u)[0]
         if s in ("aktywna", "konczy"):
             biezaca[u["lokal_id"]] = u
-    return render_template("admin/lokale.html", active="lokale", rows=rows, biezaca=biezaca, q=q)
+    return render_template("admin/lokale.html", active="lokale", rows=rows, biezaca=biezaca, q=q,
+                           budynki=budynki, b=b)
 
 
 def _lokal_form(f):
@@ -226,6 +240,7 @@ def _lokal_form(f):
     f.text("pietro", "Piętro", max_len=50)
     f.text("nr_wodomierza", "Nr wodomierza", max_len=50)
     f.text("nr_cieplomierza", "Nr ciepłomierza", max_len=50)
+    f.clean["swiatlo_klatka"] = 1 if f.raw.get("swiatlo_klatka") == "1" else 0
     f.text("opis", "Opis", max_len=4000)
     f.text("wyposazenie", "Wyposażenie", max_len=4000)
     return f
@@ -241,7 +256,7 @@ def lokal_nowy():
             flash(f"Dodano lokal „{f.clean['nazwa']}”.", "ok")
             return redirect(url_for(".lokal_edycja", lid=lid))
         return render_template("admin/lokal_form.html", active="lokale", f=f, l=None), 422
-    pre = {"rodzaj": "mieszkanie", "miasto": "Warszawa"}
+    pre = {"rodzaj": "mieszkanie", "miasto": "Warszawa", "swiatlo_klatka": "1"}
     b = get_db().execute("SELECT * FROM budynki WHERE id=?", (request.args.get("budynek", type=int),)).fetchone()
     if b:
         pre.update(budynek_id=str(b["id"]), ulica=b["ulica"] or "", kod=b["kod"] or "", miasto=b["miasto"] or "")

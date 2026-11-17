@@ -307,7 +307,9 @@ def init_db():
                                 ("faktury", "budynek_id", "INTEGER REFERENCES budynki(id)"),
                                 ("odczyty", "zrodlo", "TEXT"),          # NULL = wpisany ręcznie, 'pomiar' = z pomiarów
                                 ("budynki", "nr_wodomierza", "TEXT"),   # liczniki główne budynku
-                                ("budynki", "nr_cieplomierza", "TEXT")]:
+                                ("budynki", "nr_cieplomierza", "TEXT"),
+                                # 1 = lokal ma dostęp do klatki schodowej / podwórza i płaci za ich światło
+                                ("lokale", "swiatlo_klatka", "INTEGER NOT NULL DEFAULT 1")]:
             if col not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
                 db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         # dane sprzed budynków: przy jednym budynku przypisz mu faktury i liczniki główne (dawniej lokal_id = 0)

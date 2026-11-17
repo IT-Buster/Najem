@@ -1,0 +1,79 @@
+{% extends "panel.html" %}
+{% block title %}Pulpit{% endblock %}
+{% block content %}
+<h1>Pulpit</h1>
+<p class="muted">Saldo, ostatnie naliczenia i wpłaty</p>
+
+{% if salda %}
+<div class="stats">
+  {% for s in salda %}
+  <div class="stat {% if s.saldo > 0 %}stat-warn{% else %}stat-accent{% endif %}">
+    <span>{{ s.u.lokal_nazwa }} · saldo</span>
+    <strong>{{ (s.saldo|abs)|zl }}</strong>
+    <small class="muted">{{ 'do zapłaty' if s.saldo > 0 else 'nadpłata' if s.saldo < 0 else 'rozliczone' }}</small>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if stany %}
+<section class="panel-box">
+  <h2>Stany liczników</h2>
+  {% for s in stany %}
+    {% if stany|length > 1 %}<h3 class="small">{{ s.l.nazwa }}</h3>{% endif %}
+    {% if s.pozycje %}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>Licznik</th><th class="num">Poprzedni odczyt</th><th class="num">Aktualny odczyt</th><th class="num">Zużycie</th><th>Status</th></tr></thead>
+      <tbody>{% for p in s.pozycje %}
+        <tr><td data-label="Licznik"><strong>{{ 'Ciepłomierz' if p.rodzaj == 'cieplo' else 'Wodomierz' }}</strong></td>
+            {% set j = 'GJ' if p.rodzaj == 'cieplo' else 'm³' %}{% set m = 3 if p.rodzaj == 'cieplo' else 2 %}
+            <td data-label="Poprzedni odczyt" class="num">{% if p.poprz is not none %}{{ p.poprz|liczba(m) }} {{ j }}<span class="line muted small">{{ p.poprz_data|data }}</span>{% else %}—{% endif %}</td>
+            <td data-label="Aktualny odczyt" class="num"><strong>{{ p.stan|liczba(m) }} {{ j }}</strong><span class="line muted small">{{ p.data|data }}</span></td>
+            <td data-label="Zużycie" class="num{% if p.zuzycie is not none and p.zuzycie < 0 %} neg{% endif %}">{% if p.zuzycie is not none %}{{ p.zuzycie|liczba(m) }} {{ j }}{% if p.zuzycie < 0 %}<span class="line small">mniej niż poprzednio — sprawdź odczyt</span>{% endif %}{% else %}—{% endif %}</td>
+            <td data-label="Status">{% if p.status == 'przyjęty' %}<span class="badge badge-aktywna">przyjęty</span>{% else %}<span class="badge badge-przyszla">{{ p.status }}</span>{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}
+    <p class="muted">W tym cyklu nie wprowadzono jeszcze stanów liczników.</p>
+    {% endif %}
+  {% endfor %}
+  <p class="small">Następny odczyt podajesz w dniach <strong>{{ okno_od|data }} – {{ okno_do|data }}</strong> ·
+    <a href="{{ url_for('media') }}#podaj">Liczniki i media →</a></p>
+</section>
+{% endif %}
+
+<div class="dash-grid">
+<section class="panel-box">
+  <h2>Ostatnie naliczenia</h2>
+  {% if zaw %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Miesiąc</th><th>Lokal</th><th>Termin</th><th class="num">Do zapłaty</th></tr></thead>
+    <tbody>{% for n in zaw %}
+      <tr><td data-label="Miesiąc"><a href="{{ url_for('platnosc', nid=n.id) }}"><strong>{{ n.okres_czynsz|okres|capitalize }}</strong></a></td>
+          <td data-label="Lokal">{{ n.lokal_nazwa }}</td>
+          <td data-label="Termin">{{ n.termin|data }}</td>
+          <td data-label="Do zapłaty" class="num">{{ n.do_zaplaty|zl }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">Nie ma jeszcze naliczeń.</p>{% endif %}
+</section>
+
+<section class="panel-box">
+  <h2>Ostatnie wpłaty</h2>
+  {% if wpl %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Data</th><th>Lokal</th><th>Sposób</th><th class="num">Kwota</th></tr></thead>
+    <tbody>{% for w in wpl %}
+      <tr><td data-label="Data"><strong>{{ w.data|data }}</strong></td>
+          <td data-label="Lokal">{{ w.lokal_nazwa }}</td>
+          <td data-label="Sposób">{{ w.opis or '—' }}</td>
+          <td data-label="Kwota" class="num">{{ w.kwota|zl }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">Brak zarejestrowanych wpłat.</p>{% endif %}
+</section>
+</div>
+
+<p><a href="{{ url_for('platnosci') }}">Wszystkie zawiadomienia i wpłaty →</a></p>
+{% if rachunek %}<p class="small muted">Rachunek do wpłat: <strong>{{ rachunek }}</strong></p>{% endif %}
+{% endblock %}
