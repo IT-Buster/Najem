@@ -24,6 +24,7 @@
     {{ field(f, "pietro", "Piętro", hint="np. 3 z 6 (winda)") }}
     {{ field(f, "nr_wodomierza", "Nr wodomierza") }}
     {{ field(f, "nr_cieplomierza", "Nr ciepłomierza") }}
+    {{ field(f, "kaucja", "Kaucja domyślna (zł)", hint="Wpisywana do nowej umowy tego lokalu", attrs='inputmode="decimal"') }}
   </div>
   <label class="check"><input type="checkbox" name="swiatlo_klatka" value="1" {% if f.raw.get("swiatlo_klatka") == "1" %}checked{% endif %}>
     Dostęp do klatki schodowej i podwórza — naliczaj „Światło – klatka schodowa, podwórze”</label>

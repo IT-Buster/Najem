@@ -2,6 +2,7 @@
 {% from "admin/_form.html" import field, select, csrf, delete_button %}
 {% block title %}Wpłaty{% endblock %}
 {% block content %}
+{% macro saldo_txt(v) %}{% if v > 0 %}<span class="neg">{{ v|zl }}</span><br><span class="muted small">niedopłata</span>{% elif v < 0 %}<span class="pos">{{ (-v)|zl }}</span><br><span class="muted small">nadpłata</span>{% else %}0,00 zł{% endif %}{% endmacro %}
 <div class="page-head">
   <div><h1>Wpłaty</h1><p class="muted">Wpłaty najemców i salda rozliczeń</p></div>
 </div>
@@ -82,16 +83,34 @@ if (window.matchMedia('(pointer: fine)').matches) {
 
 {% if salda %}
 <section class="panel-box">
-  <h2>Salda</h2>
+  <div class="box-head">
+    <h2>Salda {{ 'narastająco' if rok == 'wszystkie' else 'w roku ' ~ rok }}</h2>
+    <form method="get" class="inline">
+      {% if filtr %}<input type="hidden" name="umowa" value="{{ filtr }}">{% endif %}
+      <select name="rok" aria-label="Rok" onchange="this.form.submit()">
+        {% for r in lata %}<option value="{{ r }}" {% if r == rok %}selected{% endif %}>{{ r }}</option>{% endfor %}
+        <option value="wszystkie" {% if rok == 'wszystkie' %}selected{% endif %}>Wszystkie lata</option>
+      </select>
+    </form>
+  </div>
+  {% if salda_rok %}
   <div class="table-wrap"><table class="table">
-    <thead><tr><th>Umowa</th><th class="num">Naliczono</th><th class="num">Wpłacono</th><th class="num">Saldo</th></tr></thead>
-    <tbody>{% for s in salda %}
-      <tr><td data-label="Umowa"><a href="{{ url_for('zarzadca.wplaty', umowa=s.u.id) }}"><strong>{{ s.u.lokal_nazwa }}</strong></a><br><span class="muted small">{{ s.u.numer }} · {{ s.u.najemca_nazwa or s.u.najemca_login }}</span></td>
+    <thead><tr><th>Umowa</th>{% if rok != 'wszystkie' %}<th class="num">Saldo 1 stycznia</th>{% endif %}<th class="num">Naliczono</th><th class="num">Wpłacono</th><th class="num">{{ 'Saldo 31 grudnia' if rok != 'wszystkie' and rok|int < dzis[:4]|int else 'Saldo' }}</th></tr></thead>
+    <tbody>{% for s in salda_rok %}
+      <tr><td data-label="Umowa"><a href="{{ url_for('zarzadca.wplaty', umowa=s.u.id, rok=rok) }}"><strong>{{ s.u.lokal_nazwa }}</strong></a><br><span class="muted small">{{ s.u.numer }} · {{ s.u.najemca_nazwa or s.u.najemca_login }}</span></td>
+          {% if rok != 'wszystkie' %}<td data-label="Saldo 1 stycznia" class="num">{{ saldo_txt(s.bo) }}</td>{% endif %}
           <td data-label="Naliczono" class="num">{{ s.nal|zl }}</td>
           <td data-label="Wpłacono" class="num">{{ s.wpl|zl }}</td>
-          <td data-label="Saldo" class="num">{% if s.saldo > 0 %}<span class="neg">{{ s.saldo|zl }}</span><br><span class="muted small">niedopłata</span>{% elif s.saldo < 0 %}<span class="pos">{{ (-s.saldo)|zl }}</span><br><span class="muted small">nadpłata</span>{% else %}0,00 zł{% endif %}</td></tr>
+          <td data-label="Saldo" class="num">{{ saldo_txt(s.saldo) }}</td></tr>
     {% endfor %}</tbody>
+    {% if salda_rok|length > 1 %}
+    <tfoot><tr><th>Razem</th>{% if rok != 'wszystkie' %}<td class="num">{{ saldo_txt(salda_rok|sum(attribute='bo')) }}</td>{% endif %}
+      <td class="num"><strong>{{ (salda_rok|sum(attribute='nal'))|zl }}</strong></td>
+      <td class="num"><strong>{{ (salda_rok|sum(attribute='wpl'))|zl }}</strong></td>
+      <td class="num">{{ saldo_txt(salda_rok|sum(attribute='saldo')) }}</td></tr></tfoot>
+    {% endif %}
   </table></div>
+  {% else %}<p class="muted">Brak naliczeń i wpłat w {{ rok }} roku.</p>{% endif %}
 </section>
 {% endif %}
 

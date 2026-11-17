@@ -30,6 +30,7 @@
     {% if n.termin %}Termin płatności: <strong>{{ n.termin|data }}</strong><br>{% endif %}
     {% if rachunek %}Rachunek bankowy: <strong>{{ rachunek }}</strong><br>{% endif %}
     Tytuł przelewu: {{ u.numer }} – {{ krotko(n.okres_czynsz) }}
+    {% if prad_indywidualny(u.lokal_id) %}<br><span class="small">{{ PRAD_INFO }}</span>{% endif %}
   </p>
 </article>
 {%- endmacro %}

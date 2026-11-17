@@ -309,7 +309,12 @@ def init_db():
                                 ("budynki", "nr_wodomierza", "TEXT"),   # liczniki główne budynku
                                 ("budynki", "nr_cieplomierza", "TEXT"),
                                 # 1 = lokal ma dostęp do klatki schodowej / podwórza i płaci za ich światło
-                                ("lokale", "swiatlo_klatka", "INTEGER NOT NULL DEFAULT 1")]:
+                                ("lokale", "swiatlo_klatka", "INTEGER NOT NULL DEFAULT 1"),
+                                # 1 = lokale mają własne umowy z dostawcą prądu; zarządca prądu nie rozlicza
+                                ("budynki", "prad_indywidualny", "INTEGER NOT NULL DEFAULT 0"),
+                                # wyposażenie wpisywane nowym lokalom budynku (np. podgrzewacz w każdym lokalu)
+                                ("budynki", "wyposazenie_domyslne", "TEXT"),
+                                ("lokale", "kaucja", "INTEGER")]:   # kaucja domyślna do nowej umowy (grosze)
             if col not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
                 db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         # dane sprzed budynków: przy jednym budynku przypisz mu faktury i liczniki główne (dawniej lokal_id = 0)

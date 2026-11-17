@@ -342,3 +342,9 @@ details.pay summary { cursor: pointer; color: var(--accent); }
 /* pulpit klienta: naliczenia i wpłaty obok siebie na dużym ekranie */
 .dash-grid { display: grid; gap: 1.2rem; grid-template-columns: 1fr; }
 @media (min-width: 1200px) { .dash-grid { grid-template-columns: 1fr 1fr; margin-top: 1rem; } .dash-grid .panel-box { margin-top: 0; } }
+
+/* nagłówek sekcji z przełącznikiem (np. rok) po prawej */
+.box-head { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.box-head h2 { margin: 0; }
+.table tfoot th, .table tfoot td { padding: .75rem .8rem; border-top: 2px solid var(--line); text-align: left; }
+.table tfoot td.num { text-align: right; }

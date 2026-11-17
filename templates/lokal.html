@@ -15,6 +15,7 @@
       <dt>Powierzchnia</dt><dd>{{ l.powierzchnia|m2 }}</dd>
       <dt>Liczba pokoi</dt><dd>{{ l.pokoje or '—' }}</dd>
       <dt>Piętro</dt><dd>{{ l.pietro or '—' }}</dd>
+      {% if prad_indywidualny(l.id) %}<dt>Prąd</dt><dd>umowa indywidualna z dostawcą energii — nie jest rozliczany przez zarządcę</dd>{% endif %}
     </dl>
     {% if l.opis %}<p class="desc">{{ l.opis }}</p>{% endif %}
   </section>

@@ -36,8 +36,10 @@ def _form(f):
         pusty = not (f.raw.get(k) or "").strip()
         v = f.money(k, label, required=False)
         f.clean[k] = None if pusty else v
+    f.clean["prad_indywidualny"] = 1 if f.raw.get("prad_indywidualny") == "1" else 0
     f.number("lokale_cieplo", "Liczba lokali do podziału opłaty przesyłowej", 1, 1000)
     f.text("rachunek", "Rachunek bankowy", max_len=200)
+    f.text("wyposazenie_domyslne", "Wyposażenie każdego lokalu", max_len=4000)
     f.text("uwagi", "Uwagi", max_len=4000)
     return f
 
@@ -45,6 +47,22 @@ def _form(f):
 def _domyslne():
     from rozliczenia import ust
     return ust()
+
+
+@bp.app_template_global()
+def prad_indywidualny(lokal_id):
+    """Czy lokal jest w budynku, gdzie każdy lokal ma własną umowę z dostawcą prądu."""
+    r = get_db().execute("SELECT b.prad_indywidualny FROM lokale l JOIN budynki b ON b.id=l.budynek_id"
+                         " WHERE l.id=?", (lokal_id,)).fetchone()
+    return bool(r and r[0])
+
+
+PRAD_INFO = "Energia elektryczna: umowa indywidualna lokalu z dostawcą — nie jest rozliczana przez zarządcę."
+
+
+@bp.record_once
+def _rejestruj_prad_info(state):
+    state.app.jinja_env.globals["PRAD_INFO"] = PRAD_INFO   # global: widoczny też w makrach importowanych bez kontekstu
 
 
 @bp.get("/budynki")

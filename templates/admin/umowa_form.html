@@ -45,7 +45,7 @@
   <div class="form-grid">
     {{ field(f, "czynsz", "Czynsz (zł)", hint="np. 3200 lub 3 200,50", attrs='inputmode="decimal" required') }}
     {{ field(f, "oplaty", "Opłaty / zaliczki (zł)", attrs='inputmode="decimal"') }}
-    {{ field(f, "kaucja", "Kaucja (zł)", attrs='inputmode="decimal"') }}
+    {{ field(f, "kaucja", "Kaucja (zł)", hint=None if u else "Domyślnie: kaucja ustawiona w lokalu", attrs='inputmode="decimal"') }}
     {{ field(f, "dzien_platnosci", "Dzień płatności", type="number", hint="Dzień miesiąca, 1–31", attrs="min=1 max=31 required") }}
     {{ field(f, "wypowiedzenie", "Okres wypowiedzenia", hint="np. 1 miesiąc") }}
     {{ field(f, "liczba_osob", "Liczba osób", type="number", hint="Do naliczania opłaty za śmieci", attrs="min=1 max=20 required") }}
@@ -90,7 +90,8 @@
       proponuj("numer", s.numer);
       proponuj("data_do", s.data_do);
       if (zLokalu && s.czynsz !== undefined)
-        ["czynsz", "oplaty", "kaucja", "dzien_platnosci", "wypowiedzenie"].forEach(n => proponuj(n, s[n]));
+        ["czynsz", "oplaty", "dzien_platnosci", "wypowiedzenie"].forEach(n => proponuj(n, s[n]));
+      if (zLokalu) proponuj("kaucja", s.kaucja);
     } catch (e) { /* bez podpowiedzi — formularz działa normalnie */ }
   }
 
@@ -98,6 +99,7 @@
   el("data_zawarcia").addEventListener("change", () => sugestie(false));
   el("data_od").addEventListener("change", () => sugestie(false));
   el("lokal_id").addEventListener("change", () => sugestie(true));
+
 })();
 </script>
 {% endif %}

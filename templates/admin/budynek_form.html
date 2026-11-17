@@ -33,6 +33,9 @@
     {{ field(f, "lokale_cieplo", "Lokale do podziału opłaty przesyłowej", hint="Puste = lokale z nr ciepłomierza", attrs='inputmode="numeric"') }}
     {{ field(f, "rachunek", "Rachunek bankowy", hint='domyślnie: ' ~ (dom.rachunek or 'brak')) }}
   </div>
+  <label class="check"><input type="checkbox" name="prad_indywidualny" value="1" {% if f.raw.get("prad_indywidualny") == "1" %}checked{% endif %}>
+    Prąd: każdy lokal ma indywidualną umowę z dostawcą energii (zarządca nie rozlicza prądu)</label>
+  {{ area(f, "wyposazenie_domyslne", "Wyposażenie każdego lokalu", hint="Wpisywane do spisu wyposażenia nowych lokali w tym budynku; każda pozycja w osobnej linii", rows=2) }}
   {{ area(f, "uwagi", "Uwagi", rows=2) }}
   <div class="form-actions">
     <button class="btn btn-primary" type="submit">{{ 'Zapisz zmiany' if b else 'Dodaj budynek' }}</button>

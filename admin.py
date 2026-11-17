@@ -241,6 +241,9 @@ def _lokal_form(f):
     f.text("nr_wodomierza", "Nr wodomierza", max_len=50)
     f.text("nr_cieplomierza", "Nr ciepłomierza", max_len=50)
     f.clean["swiatlo_klatka"] = 1 if f.raw.get("swiatlo_klatka") == "1" else 0
+    pusta = not (f.raw.get("kaucja") or "").strip()
+    kw = f.money("kaucja", "Kaucja domyślna", required=False)
+    f.clean["kaucja"] = None if pusta else kw
     f.text("opis", "Opis", max_len=4000)
     f.text("wyposazenie", "Wyposażenie", max_len=4000)
     return f
@@ -259,7 +262,8 @@ def lokal_nowy():
     pre = {"rodzaj": "mieszkanie", "miasto": "Warszawa", "swiatlo_klatka": "1"}
     b = get_db().execute("SELECT * FROM budynki WHERE id=?", (request.args.get("budynek", type=int),)).fetchone()
     if b:
-        pre.update(budynek_id=str(b["id"]), ulica=b["ulica"] or "", kod=b["kod"] or "", miasto=b["miasto"] or "")
+        pre.update(budynek_id=str(b["id"]), ulica=b["ulica"] or "", kod=b["kod"] or "", miasto=b["miasto"] or "",
+                   wyposazenie=b["wyposazenie_domyslne"] or "")
     f = Form(pre)
     return render_template("admin/lokal_form.html", active="lokale", f=f, l=None)
 
@@ -278,6 +282,7 @@ def lokal_edycja(lid):
         return render_template("admin/lokal_form.html", active="lokale", f=f, l=l, umowy=umowy), 422
     f = Form({k: ("" if l[k] is None else str(l[k]) if not isinstance(l[k], float) else f"{l[k]:g}".replace(".", ","))
               for k in l.keys()})
+    f.raw["kaucja"] = zl_input(l["kaucja"])
     return render_template("admin/lokal_form.html", active="lokale", f=f, l=l, umowy=umowy)
 
 
@@ -391,6 +396,16 @@ def rok_pozniej(iso):
     return date.fromordinal(d2.toordinal() - 1).isoformat()
 
 
+def kaucja_lokalu(lokal_id, ostatnia=None):
+    """Kaucja do nowej umowy: kaucja domyślna lokalu, a gdy jej nie ustawiono — z poprzedniej umowy."""
+    if not lokal_id:
+        return None
+    r = get_db().execute("SELECT kaucja FROM lokale WHERE id=?", (lokal_id,)).fetchone()
+    if r and r["kaucja"] is not None:
+        return r["kaucja"]
+    return ostatnia["kaucja"] if ostatnia else None
+
+
 def ostatnie_kwoty(lokal_id):
     """Kwoty z ostatniej umowy tego lokalu — jako propozycja."""
     if not lokal_id:
@@ -410,12 +425,16 @@ def umowa_sugestie():
         out["data_do"] = rok_pozniej(od)
     except ValueError:
         pass
-    k = ostatnie_kwoty(request.args.get("lokal", type=int))
+    lid = request.args.get("lokal", type=int)
+    k = ostatnie_kwoty(lid)
     if k:
         out.update(czynsz=zl_input(k["czynsz"]), oplaty=zl_input(k["oplaty"]),
-                   kaucja=zl_input(k["kaucja"]), dzien_platnosci=str(k["dzien_platnosci"]),
-                   wypowiedzenie=k["wypowiedzenie"] or "")
+                   dzien_platnosci=str(k["dzien_platnosci"]), wypowiedzenie=k["wypowiedzenie"] or "")
+    kd = kaucja_lokalu(lid, k)
+    if kd is not None:
+        out["kaucja"] = zl_input(kd)
     return out
+
 
 
 @bp.route("/umowy/nowa", methods=["GET", "POST"])
@@ -438,10 +457,14 @@ def umowa_nowa():
            "data_zawarcia": dzis, "data_od": dzis, "data_do": rok_pozniej(dzis),
            "numer": nastepny_numer("najem okazjonalny"),
            "lokal_id": request.args.get("lokal", ""), "najemca_id": request.args.get("klient", "")}
-    k = ostatnie_kwoty(request.args.get("lokal", type=int))
+    lid = request.args.get("lokal", type=int)
+    k = ostatnie_kwoty(lid)
     if k:
-        pre.update(czynsz=zl_input(k["czynsz"]), oplaty=zl_input(k["oplaty"]), kaucja=zl_input(k["kaucja"]),
+        pre.update(czynsz=zl_input(k["czynsz"]), oplaty=zl_input(k["oplaty"]),
                    dzien_platnosci=str(k["dzien_platnosci"]), wypowiedzenie=k["wypowiedzenie"] or "")
+    kd = kaucja_lokalu(lid, k)
+    if kd is not None:
+        pre["kaucja"] = zl_input(kd)
     return render_template("admin/umowa_form.html", active="umowy", f=Form(pre), u=None, **_opcje())
 
 

@@ -857,6 +857,31 @@ def wplaty():
                          " ORDER BY okres_czynsz DESC LIMIT 1", (s["u"]["id"],)).fetchone()
         do_potw.append({**s, "ost": ost, "po_terminie": bool(ost and ost["termin"] and ost["termin"] < dziś)})
     do_potw.sort(key=lambda s: s["u"]["lokal_nazwa"])
+
+    # salda w rozbiciu na rok kalendarzowy: naliczenia wg miesiąca czynszu, wpłaty wg daty wpłaty
+    lata = sorted({r[0] for r in db.execute(
+        "SELECT substr(okres_czynsz,1,4) FROM naliczenia UNION SELECT substr(data,1,4) FROM wplaty")}, reverse=True)
+    rok = request.args.get("rok") or str(date.today().year)
+    if rok != "wszystkie" and not (rok.isdigit() and len(rok) == 4):
+        rok = str(date.today().year)
+    salda_rok = []
+    if rok != "wszystkie":
+        p, k = f"{rok}-01", f"{int(rok) + 1}-01"
+        for s in salda:
+            uid = s["u"]["id"]
+            nal_bo = db.execute("SELECT coalesce(sum(suma_pozycji),0) FROM naliczenia WHERE umowa_id=? AND okres_czynsz<?",
+                                (uid, p)).fetchone()[0]
+            wpl_bo = db.execute("SELECT coalesce(sum(kwota),0) FROM wplaty WHERE umowa_id=? AND data<?",
+                                (uid, p + "-01")).fetchone()[0]
+            nal = db.execute("SELECT coalesce(sum(suma_pozycji),0) FROM naliczenia WHERE umowa_id=?"
+                             " AND okres_czynsz>=? AND okres_czynsz<?", (uid, p, k)).fetchone()[0]
+            wpl = db.execute("SELECT coalesce(sum(kwota),0) FROM wplaty WHERE umowa_id=? AND data>=? AND data<?",
+                             (uid, p + "-01", k + "-01")).fetchone()[0]
+            bo = nal_bo - wpl_bo
+            if bo or nal or wpl:
+                salda_rok.append({"u": s["u"], "bo": bo, "nal": nal, "wpl": wpl, "saldo": bo + nal - wpl})
+    else:
+        salda_rok = [{**s, "bo": 0} for s in salda]
     q ="""SELECT w.*, u.numer, l.nazwa AS lokal_nazwa, coalesce(k.full_name, k.login) AS najemca
            FROM wplaty w JOIN umowy u ON u.id=w.umowa_id JOIN lokale l ON l.id=u.lokal_id
            JOIN users k ON k.id=u.najemca_id"""
@@ -867,6 +892,7 @@ def wplaty():
     rows = db.execute(q + " ORDER BY w.data DESC, w.id DESC LIMIT 300", args).fetchall()
     return render_template("admin/wplaty.html", active="wplaty", f=f, rows=rows, umowy=umowy,
                            salda=salda, filtr=filtr, do_potw=do_potw, dzis=dziś,
+                           salda_rok=salda_rok, rok=rok, lata=lata,
                            nalezne={str(s['u']['id']): zl_input(s['saldo']) for s in do_potw}), status
 
 
