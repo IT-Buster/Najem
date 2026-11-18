@@ -7,7 +7,7 @@
   <a class="brand" href="{% block home_url %}{{ url_for('panel') }}{% endblock %}"><img class="logo" src="{{ url_for('logo') }}" alt="" width="32" height="32"> Najem{% block brand_suffix %}{% endblock %}</a>
   <div class="who">
     {% if user.full_name %}<span class="muted">{{ user.full_name }}</span>{% endif %}
-    <span class="who-login" title="Zalogowano jako {{ user.login }}">{{ user.login }}</span>
+    <a class="who-login" href="{{ url_for('zarzadca.konto') if user.role == 'zarzadca' else url_for('konto') }}" title="Moje konto — zalogowano jako {{ user.login }}">{{ user.login }}</a>
     <form method="post" action="{{ url_for('logout') }}">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <button class="btn btn-ghost btn-sm" type="submit">Wyloguj</button>

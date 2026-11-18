@@ -1,0 +1,4 @@
+{% extends "admin/base.html" %}
+{% from "_konto.html" import konto %}
+{% block title %}Moje konto{% endblock %}
+{% block content %}{{ konto(u, errors, form, haslo_min, kontakt=false) }}{% endblock %}

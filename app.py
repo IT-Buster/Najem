@@ -751,6 +751,7 @@ import budynki  # noqa: E402,F401
 import podatek  # noqa: E402,F401
 import pomiary  # noqa: E402,F401
 import wiadomosci  # noqa: E402,F401
+import konto  # noqa: E402,F401
 app.register_blueprint(admin_bp)
 
 if __name__ == "__main__":

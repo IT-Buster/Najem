@@ -26,6 +26,7 @@ ADMIN_MENU = [
     ("podatek", "Podatek"),
     ("wydatki", "Wydatki"),
     ("ustawienia", "Ustawienia"),
+    ("konto", "Moje konto"),
 ]
 RODZAJE_LOKALI = ["mieszkanie", "kawalerka", "pokój", "dom", "lokal użytkowy", "garaż / miejsce postojowe"]
 RODZAJE_UMOW = ["najem okazjonalny", "najem zwykły", "najem instytucjonalny", "najem lokalu użytkowego"]

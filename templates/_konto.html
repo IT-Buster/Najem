@@ -1,0 +1,44 @@
+{# Moje konto — wspólne dla panelu najemcy i zarządcy. #}
+{% macro konto(u, errors, form, haslo_min, kontakt=true) %}
+<h1>Moje konto</h1>
+<p class="muted">Login: <strong>{{ u.login }}</strong>{% if u.full_name %} · {{ u.full_name }}{% endif %}{% if u.last_login_at %} · ostatnie logowanie: {{ u.last_login_at|data }}{% endif %}</p>
+
+<section class="panel-box" id="haslo">
+  <h2>Zmiana hasła</h2>
+  <form method="post" class="form" novalidate autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="akcja" value="haslo">
+    <input type="text" name="username" value="{{ u.login }}" autocomplete="username" hidden>
+    <div class="form-grid">
+      <label class="field{% if errors.haslo %} has-error{% endif %}">Obecne hasło
+        <input type="password" name="haslo" autocomplete="current-password" required>
+        {% if errors.haslo %}<span class="err">{{ errors.haslo }}</span>{% endif %}</label>
+      <label class="field{% if errors.nowe %} has-error{% endif %}">Nowe hasło
+        <input type="password" name="nowe" autocomplete="new-password" minlength="{{ haslo_min }}" required>
+        {% if errors.nowe %}<span class="err">{{ errors.nowe }}</span>{% else %}<span class="hint">Co najmniej {{ haslo_min }} znaków</span>{% endif %}</label>
+      <label class="field{% if errors.powtorz %} has-error{% endif %}">Powtórz nowe hasło
+        <input type="password" name="powtorz" autocomplete="new-password" required>
+        {% if errors.powtorz %}<span class="err">{{ errors.powtorz }}</span>{% endif %}</label>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Zmień hasło</button></div>
+  </form>
+</section>
+
+{% if kontakt %}
+<section class="panel-box">
+  <h2>Dane kontaktowe</h2>
+  <p class="muted small">Zarządca użyje ich w sprawach najmu.</p>
+  <form method="post" class="form" novalidate>
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="akcja" value="kontakt">
+    <div class="form-grid">
+      <label class="field{% if errors.email %} has-error{% endif %}">E-mail
+        <input type="email" name="email" value="{{ form.email if form.email is defined else (u.email or '') }}" autocomplete="email">
+        {% if errors.email %}<span class="err">{{ errors.email }}</span>{% endif %}</label>
+      <label class="field{% if errors.telefon %} has-error{% endif %}">Telefon
+        <input type="tel" name="telefon" value="{{ form.telefon if form.telefon is defined else (u.telefon or '') }}" autocomplete="tel">
+        {% if errors.telefon %}<span class="err">{{ errors.telefon }}</span>{% endif %}</label>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Zapisz</button></div>
+  </form>
+</section>
+{% endif %}
+{% endmacro %}
