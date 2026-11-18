@@ -444,6 +444,11 @@ def inject():
 
 
 # ---------- widoki ----------
+@app.get("/favicon.ico")
+def favicon():
+    return app.send_static_file("favicon-32.png"), 200, {"Cache-Control": "public, max-age=604800"}
+
+
 @app.get("/")
 def index():
     return render_template("index.html")

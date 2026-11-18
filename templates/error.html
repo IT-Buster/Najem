@@ -2,7 +2,7 @@
 {% block title %}Błąd {{ code }}{% endblock %}
 {% block body %}
 <main class="auth">
-  <a class="brand" href="{{ url_for('index') }}"><span class="logo">N</span> Najem</a>
+  <a class="brand" href="{{ url_for('index') }}"><img class="logo" src="{{ url_for('static', filename='logo.svg') }}" alt="" width="32" height="32"> Najem</a>
   <div class="card">
     <h1>{{ code }}</h1>
     <p class="muted">{{ msg }}</p>
