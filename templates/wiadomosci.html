@@ -11,7 +11,7 @@
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <div class="form-grid">
       <label class="field{% if errors.temat %} has-error{% endif %}">Temat
-        <input name="temat" value="{{ form.temat or '' }}" maxlength="{{ temat_max }}" required placeholder="np. Cieknący kran w łazience">
+        <input name="temat" value="{{ form.temat or '' }}" maxlength="{{ temat_max }}" required placeholder="np. Skorodowany, cieknący wężyk pod umywalką">
         {% if errors.temat %}<span class="err">{{ errors.temat }}</span>{% endif %}
       </label>
       {% if lokale|length > 1 %}
