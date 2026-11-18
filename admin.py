@@ -533,14 +533,26 @@ def aneks_usun(aid):
 @bp.get("/klienci")
 def klienci():
     q = request.args.get("q", "").strip()
+    konta = request.args.get("konta", "aktywne")          # domyślnie bieżący klienci (konta aktywne)
+    if konta not in KONTA:
+        konta = "aktywne"
     sql = """SELECT k.*, (SELECT count(*) FROM umowy u WHERE u.najemca_id=k.id) AS umowy_n
              FROM users k WHERE k.role='klient'"""
     args = []
+    if konta != "wszystkie":
+        sql += " AND k.aktywny=?"
+        args.append(1 if konta == "aktywne" else 0)
     if q:
         sql += " AND (k.login LIKE ? OR k.full_name LIKE ? OR k.email LIKE ? OR k.telefon LIKE ?)"
-        args = [f"%{q}%"] * 4
+        args += [f"%{q}%"] * 4
     rows = get_db().execute(sql + " ORDER BY k.aktywny DESC, coalesce(k.full_name, k.login)", args).fetchall()
-    return render_template("admin/klienci.html", active="klienci", rows=rows, q=q)
+    ile = dict(get_db().execute("SELECT aktywny, count(*) FROM users WHERE role='klient' GROUP BY aktywny").fetchall())
+    liczby = {"aktywne": ile.get(1, 0), "zablokowane": ile.get(0, 0), "wszystkie": sum(ile.values())}
+    return render_template("admin/klienci.html", active="klienci", rows=rows, q=q, konta=konta, konta_opcje=KONTA,
+                           liczby=liczby)
+
+
+KONTA = {"aktywne": "Konta aktywne", "zablokowane": "Konta zablokowane", "wszystkie": "Wszystkie konta"}
 
 
 def _klient_form(f, kid=None):

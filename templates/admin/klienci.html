@@ -7,9 +7,12 @@
 </div>
 
 <form class="toolbar" method="get">
+  <select name="konta" aria-label="Konta" onchange="this.form.submit()">
+    {% for v, t in konta_opcje.items() %}<option value="{{ v }}" {% if v == konta %}selected{% endif %}>{{ t }} ({{ liczby[v] }})</option>{% endfor %}
+  </select>
   <input name="q" value="{{ q }}" placeholder="Szukaj: nazwisko, login, e-mail, telefon" aria-label="Szukaj">
   <button class="btn btn-ghost" type="submit">Szukaj</button>
-  {% if q %}<a href="{{ url_for('zarzadca.klienci') }}">Wyczyść</a>{% endif %}
+  {% if q or konta != 'aktywne' %}<a href="{{ url_for('zarzadca.klienci') }}">Wyczyść</a>{% endif %}
 </form>
 
 {% if rows %}
@@ -28,6 +31,6 @@
   </tbody>
 </table></div>
 {% else %}
-<div class="placeholder"><strong>Brak klientów</strong><span>{% if q %}Nic nie pasuje do wyszukiwania.{% else %}Dodaj pierwszego klienta.{% endif %}</span></div>
+<div class="placeholder"><strong>Brak klientów</strong><span>{% if q %}Nic nie pasuje do wyszukiwania.{% elif konta == 'zablokowane' %}Nie ma zablokowanych kont.{% elif konta == 'aktywne' and liczby.wszystkie %}Nie ma aktywnych kont — zobacz wszystkie.{% else %}Dodaj pierwszego klienta.{% endif %}</span></div>
 {% endif %}
 {% endblock %}
