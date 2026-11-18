@@ -40,4 +40,14 @@ start() {   # nazwa katalog port domeny
 ok=0
 start "Najem demo" instance 8000 najem.bk.waw.pl || ok=1
 start "Asystent najmu" /workspace/asystentnajmu-dane 8001 asystentnajmu.bk.waw.pl || ok=1
+
+# codzienna kopia danych asystentnajmu (lokalnie + Google Drive przez rclone) — zob. kopia.sh
+HPID=/workspace/asystentnajmu-kopie/harmonogram.pid
+if [ -f "$HPID" ] && kill -0 "$(cat "$HPID")" 2>/dev/null; then
+    echo "Harmonogram kopii już działa (PID $(cat "$HPID"))."
+else
+    mkdir -p /workspace/asystentnajmu-kopie
+    nohup setsid sh ./kopia-harmonogram.sh >/dev/null 2>&1 &
+    echo "Harmonogram kopii uruchomiony (codziennie po 3:00), log: /workspace/asystentnajmu-kopie/kopia.log"
+fi
 exit $ok
