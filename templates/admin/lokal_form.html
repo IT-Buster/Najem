@@ -55,4 +55,22 @@
   {% endif %}
 </section>
 {% endif %}
+
+{% if l and usterki_lokalu is defined %}
+<section class="panel-box">
+  <div class="box-head"><h2>Usterki i naprawy</h2>
+    <span class="muted small">{{ usterki_lokalu|length }} {{ 'zgłoszenie' if usterki_lokalu|length == 1 else ('zgłoszenia' if usterki_lokalu|length % 10 in [2,3,4] and usterki_lokalu|length % 100 not in [12,13,14] else 'zgłoszeń') }}{% set koszt_wyn = usterki_lokalu|selectattr('kto_placi','equalto','wynajmujacy')|map(attribute='koszt')|select|sum %}{% if koszt_wyn %} · koszt wynajmującego: {{ koszt_wyn|zl }}{% endif %}</span></div>
+  {% if usterki_lokalu %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Zgłoszenie</th><th>Najemca</th><th>Status</th><th class="num">Koszt</th></tr></thead>
+    <tbody>{% for u in usterki_lokalu %}
+      <tr><td data-label="Zgłoszenie"><a href="{{ url_for('zarzadca.wiadomosc', wid=u.id) }}"><strong>{{ u.temat }}</strong></a><span class="line muted small">{{ u.utworzony|data }} · {{ u.kategoria }}</span></td>
+          <td data-label="Najemca">{{ u.najemca }}</td>
+          <td data-label="Status"><span class="badge {{ {'nowe':'badge-przyszla','przyjete':'badge-konczy','umowiona':'badge-konczy','naprawione':'badge-aktywna'}.get(u.status, 'badge-zakonczona') }}">{{ statusy_usterki[u.status] }}</span></td>
+          <td data-label="Koszt" class="num">{% if u.koszt %}{{ u.koszt|zl }}<span class="line muted small">{{ kto_placi_opcje[u.kto_placi] }}</span>{% else %}—{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">Dla tego lokalu nie zgłoszono jeszcze usterek.</p>{% endif %}
+</section>
+{% endif %}
 {% endblock %}

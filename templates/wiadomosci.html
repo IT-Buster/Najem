@@ -1,42 +1,88 @@
 {% extends "panel.html" %}
-{% from "_watek.html" import lista %}
-{% block title %}Wiadomości{% endblock %}
+{% from "_watek.html" import lista, pole_zdjec %}
+{% block title %}Wiadomości i usterki{% endblock %}
 {% block content %}
-<h1>Wiadomości</h1>
-<p class="muted">Korespondencja z zarządcą — pytania, prośby, sprawy do załatwienia</p>
+<div class="page-head">
+  <div><h1>Wiadomości i usterki</h1>
+    <p class="muted">Korespondencja z zarządcą i zgłoszenia usterek w lokalu</p></div>
+  <div class="actions">
+    <a class="btn btn-ghost" href="{{ url_for('wiadomosci') }}#nowa" data-rodzaj="wiadomosc">✉ Napisz</a>
+    <a class="btn btn-primary" href="{{ url_for('wiadomosci', rodzaj='usterka') }}#nowa" data-rodzaj="usterka"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Zgłoś usterkę</a>
+  </div>
+</div>
 
-<details class="panel-box add-box msg-new" {% if nowy %}open{% endif %}>
-  <summary>+ Nowa wiadomość do zarządcy</summary>
-  <form method="post" class="form" novalidate autocomplete="off">
+<details class="panel-box add-box msg-new" id="nowa" {% if nowy %}open{% endif %}>
+  <summary>+ Nowa wiadomość lub zgłoszenie usterki</summary>
+  <form method="post" action="{{ url_for('wiadomosci') }}" class="form" enctype="multipart/form-data" data-zdjecia novalidate autocomplete="off">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <fieldset class="seg" aria-label="Rodzaj">
+      <label><input type="radio" name="rodzaj" value="wiadomosc" {% if form.rodzaj != 'usterka' %}checked{% endif %}> ✉ Wiadomość</label>
+      <label><input type="radio" name="rodzaj" value="usterka" {% if form.rodzaj == 'usterka' %}checked{% endif %}> <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Zgłoszenie usterki</label>
+    </fieldset>
+    <p class="hint small only-usterka">Opisz, co się stało i gdzie (np. łazienka, kuchnia). Zdjęcie bardzo pomaga ocenić usterkę.
+      W nagłych przypadkach (zalanie, zapach gazu, brak prądu) zadzwoń też do zarządcy.</p>
     <div class="form-grid">
       <label class="field{% if errors.temat %} has-error{% endif %}">Temat
-        <input name="temat" value="{{ form.temat or '' }}" maxlength="{{ temat_max }}" required placeholder="np. Skorodowany, cieknący wężyk pod umywalką">
+        <input name="temat" value="{{ form.temat or '' }}" maxlength="{{ temat_max }}" required
+          data-ph-wiadomosc="np. Zmiana liczby osób w lokalu od grudnia" data-ph-usterka="np. Skorodowany, cieknący wężyk pod umywalką"
+          placeholder="{{ 'np. Skorodowany, cieknący wężyk pod umywalką' if form.rodzaj == 'usterka' else 'np. Zmiana liczby osób w lokalu od grudnia' }}">
         {% if errors.temat %}<span class="err">{{ errors.temat }}</span>{% endif %}
       </label>
       {% if lokale|length > 1 %}
-      <label class="field">Lokal
+      <label class="field{% if errors.lokal_id %} has-error{% endif %}">Lokal
         <select name="lokal_id">
-          <option value="">— ogólnie —</option>
+          <option value="">— wybierz —</option>
           {% for l in lokale %}<option value="{{ l.id }}" {% if form.lokal_id == l.id %}selected{% endif %}>{{ l.nazwa }}</option>{% endfor %}
         </select>
+        {% if errors.lokal_id %}<span class="err">{{ errors.lokal_id }}</span>{% endif %}
       </label>
-      {% endif %}
+      {% elif errors.lokal_id %}<p class="err">{{ errors.lokal_id }}</p>{% endif %}
+      <label class="field only-usterka{% if errors.kategoria %} has-error{% endif %}">Rodzaj usterki
+        <select name="kategoria">
+          <option value="">— wybierz —</option>
+          {% for k in kategorie_usterek %}<option value="{{ k }}" {% if form.kategoria == k %}selected{% endif %}>{{ k }}</option>{% endfor %}
+        </select>
+        {% if errors.kategoria %}<span class="err">{{ errors.kategoria }}</span>{% endif %}
+      </label>
+      <label class="check only-usterka"><input type="checkbox" name="pilna" value="1" {% if form.pilna %}checked{% endif %}>
+        Pilne — usterka utrudnia korzystanie z lokalu albo grozi szkodą</label>
     </div>
-    <label class="field field-wide{% if errors.tresc %} has-error{% endif %}">Treść
+    <label class="field field-wide{% if errors.tresc %} has-error{% endif %}"><span class="only-wiadomosc">Treść</span><span class="only-usterka">Opis usterki</span>
       <textarea name="tresc" rows="6" maxlength="{{ tresc_max }}" required>{{ form.tresc or '' }}</textarea>
       {% if errors.tresc %}<span class="err">{{ errors.tresc }}</span>{% endif %}
     </label>
-    <div class="form-actions"><button class="btn btn-primary" type="submit">Wyślij do zarządcy</button></div>
+    <div class="form-grid" style="margin-top:1rem">{{ pole_zdjec(errors, zdjec_max) }}</div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">
+      <span class="only-wiadomosc">Wyślij do zarządcy</span><span class="only-usterka">Zgłoś usterkę</span></button></div>
   </form>
 </details>
+<script src="{{ static_v('zdjecia.js') }}"></script>
+<script>
+(function () {
+  var box = document.getElementById('nowa'), form = box.querySelector('form'), temat = form.querySelector('[name=temat]');
+  function pokaz() {
+    var r = form.querySelector('[name=rodzaj]:checked').value;
+    box.dataset.rodzaj = r;
+    temat.placeholder = temat.dataset['ph' + r.charAt(0).toUpperCase() + r.slice(1)];
+  }
+  form.querySelectorAll('[name=rodzaj]').forEach(function (i) { i.addEventListener('change', pokaz); });
+  pokaz();
+  document.querySelectorAll('a[data-rodzaj]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      form.querySelector('[name=rodzaj][value=' + a.dataset.rodzaj + ']').checked = true; pokaz();
+      box.open = true; box.scrollIntoView({block: 'start', behavior: 'smooth'}); temat.focus({preventScroll: true});
+    });
+  });
+})();
+</script>
 
 {% if watki %}
 <section class="panel-box">
-  <h2>Twoje rozmowy</h2>
+  <h2>Twoje sprawy</h2>
   {{ lista(watki, 'wiadomosc') }}
 </section>
 {% else %}
-<div class="placeholder"><strong>Brak wiadomości</strong><span>Napisz do zarządcy — odpowiedź zobaczysz tutaj.</span></div>
+<div class="placeholder"><strong>Brak wiadomości</strong><span>Napisz do zarządcy albo zgłoś usterkę — odpowiedź zobaczysz tutaj.</span></div>
 {% endif %}
 {% endblock %}

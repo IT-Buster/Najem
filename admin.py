@@ -14,7 +14,7 @@ bp = Blueprint("zarzadca", __name__, url_prefix="/zarzadca")
 
 ADMIN_MENU = [
     ("pulpit", "Pulpit"),
-    ("wiadomosci", "Wiadomości"),
+    ("wiadomosci", "Wiadomości i usterki"),
     ("budynki", "Budynki"),
     ("lokale", "Lokale"),
     ("umowy", "Umowy"),

@@ -380,3 +380,37 @@ details.pay summary { cursor: pointer; color: var(--accent); }
 .msg-new textarea { width: 100%; }
 .msg-new input[name=temat] { width: 100%; }
 @media (max-width: 760px) { .msg { max-width: 94%; } }
+
+/* ---------- usterki ---------- */
+.badge-pilne { background: var(--danger-soft); color: var(--danger); }
+.mt-kind { flex: none; width: 1.3rem; text-align: center; }
+.mt-meta .badge { font-size: .72rem; padding: .05rem .45rem; }
+.msg-sys { align-self: center; text-align: center; max-width: 90%; font-size: .85rem; padding: .35rem .8rem; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); }
+.msg-photos { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .4rem; }
+.msg-photos img { display: block; width: 7.5rem; height: 7.5rem; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.msg-reply-extra { margin-top: .8rem; align-items: end; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--line); border-radius: 10px; padding: 3px; margin: 0 0 1rem; }
+.seg label { display: flex; align-items: center; gap: .4rem; padding: .4rem .8rem; border-radius: 7px; cursor: pointer; font-size: .92rem; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label:has(input:checked) { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.msg-new[data-rodzaj=wiadomosc] .only-usterka, .msg-new[data-rodzaj=usterka] .only-wiadomosc { display: none; }
+.msg-new:not([data-rodzaj]) .only-usterka { display: none; }
+.msg-layout { display: grid; grid-template-columns: minmax(0, 52rem) minmax(16rem, 22rem); gap: 1.2rem; align-items: start; }
+.msg-layout .msg-thread { max-width: none; }
+.usterka-box { position: sticky; top: 1rem; }
+.usterka-box h2 { margin-top: 0; }
+.usterka-box .form .field { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .8rem; }
+.usterka-box fieldset { border: 0; padding: 0; margin: 0 0 .8rem; }
+.usterka-box legend { font-weight: 600; padding: 0; margin-bottom: .2rem; }
+.usterka-box .form-actions { margin-top: .6rem; }
+.usterka-stan { margin-bottom: 1rem; }
+.stat-badge .badge { font-size: .9rem; }
+.usterki-mini { list-style: none; margin: 0; padding: 0; }
+.usterki-mini li { display: flex; flex-wrap: wrap; gap: .2rem .8rem; justify-content: space-between; padding: .45rem 0; }
+.usterki-mini li + li { border-top: 1px solid var(--line); }
+@media (max-width: 1100px) { .msg-layout { grid-template-columns: 1fr; } .usterka-box { position: static; } }
+.ico { width: 1em; height: 1em; vertical-align: -.125em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sidebar a { display: flex; align-items: center; gap: .3rem; }
+.sidebar a .nav-badge { margin-left: auto; flex: none; }

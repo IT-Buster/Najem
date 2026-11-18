@@ -1,16 +1,26 @@
 {% extends "panel.html" %}
-{% from "_watek.html" import rozmowa, odpowiedz %}
+{% from "_watek.html" import rozmowa, odpowiedz, status_usterki %}
 {% block title %}{{ w.temat }} · Wiadomości{% endblock %}
 {% block content %}
-<p class="small"><a href="{{ wstecz }}">← Wszystkie wiadomości</a></p>
+<p class="small"><a href="{{ wstecz }}">← Wszystkie sprawy</a></p>
 <div class="page-head">
   <div><h1>{{ w.temat }}</h1>
-    <p class="muted small">{{ w.lokal_nazwa or 'Wiadomość do zarządcy' }} · rozpoczęta {{ w.utworzony|czas }}
-      {% if w.zamkniety %}· <span class="badge badge-zakonczona">sprawa zamknięta</span>{% endif %}</p></div>
+    <p class="muted small">{% if w.rodzaj == 'usterka' %}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Zgłoszenie usterki{% else %}✉ Wiadomość{% endif %} · {{ w.lokal_nazwa or 'do zarządcy' }} · rozpoczęta {{ w.utworzony|czas }}
+      {% if w.zamkniety and w.rodzaj == 'wiadomosc' %}· <span class="badge badge-zakonczona">sprawa zamknięta</span>{% endif %}</p></div>
 </div>
+
+{% if w.rodzaj == 'usterka' %}
+<div class="stats usterka-stan">
+  <div class="stat"><span>Status</span><strong class="stat-badge">{{ status_usterki(w) }}</strong></div>
+  <div class="stat"><span>Rodzaj</span><strong>{{ w.kategoria }}</strong></div>
+  {% if w.wizyta and w.status not in ['naprawione', 'odrzucone'] %}<div class="stat stat-accent"><span>Termin wizyty</span><strong>{{ w.wizyta|replace('T', ' ')|czas }}</strong></div>{% endif %}
+  {% if w.koszt and w.kto_placi == 'najemca' %}<div class="stat stat-warn"><span>Koszt po Twojej stronie</span><strong>{{ w.koszt|zl }}</strong></div>{% endif %}
+</div>
+{% endif %}
 
 <section class="panel-box msg-thread">
   {{ rozmowa(msgs, nowe_od, moje_od_zarzadcy) }}
-  {{ odpowiedz(akcja, tresc, errors, tresc_max, zarzadca=false, zamkniety=w.zamkniety) }}
+  {{ odpowiedz(w, akcja, tresc, errors, tresc_max, zdjec_max, zarzadca=false) }}
 </section>
+<script src="{{ static_v('zdjecia.js') }}"></script>
 {% endblock %}

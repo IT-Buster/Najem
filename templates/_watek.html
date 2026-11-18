@@ -1,4 +1,11 @@
-{# Wspólne elementy modułu wiadomości (panel najemcy i zarządcy). #}
+{# Wspólne elementy modułu wiadomości i usterek (panel najemcy i zarządcy). #}
+
+{% macro status_usterki(w) -%}
+{% set klasy = {'nowe': 'badge-przyszla', 'przyjete': 'badge-konczy', 'umowiona': 'badge-konczy',
+                'naprawione': 'badge-aktywna', 'odrzucone': 'badge-zakonczona'} %}
+<span class="badge {{ klasy.get(w.status, 'badge-przyszla') }}">{{ statusy_usterki.get(w.status, w.status) }}</span>
+{%- if w.pilna and not w.zamkniety %} <span class="badge badge-pilne">pilne</span>{% endif %}
+{%- endmacro %}
 
 {% macro lista(watki, endpoint, zarzadca=false) %}
 <ul class="msg-threads">
@@ -6,16 +13,18 @@
   <li class="{% if w.nowe %}unread{% endif %}{% if w.zamkniety %} closed{% endif %}">
     <a href="{{ url_for(endpoint, wid=w.id) }}">
       <span class="mt-top">
+        <span class="mt-kind" title="{{ 'Zgłoszenie usterki' if w.rodzaj == 'usterka' else 'Wiadomość' }}" aria-hidden="true">{% if w.rodzaj == 'usterka' %}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>{% else %}✉{% endif %}</span>
         <strong class="mt-subj">{{ w.temat }}</strong>
         {% if w.nowe %}<span class="nav-badge" title="Nowe wiadomości">{{ w.nowe }}</span>{% endif %}
         <span class="mt-when muted small">{{ w.zmieniony|czas }}</span>
       </span>
       <span class="mt-meta muted small">
+        {% if w.rodzaj == 'usterka' %}{{ status_usterki(w) }}{% if w.status == 'umowiona' and w.wizyta %} {{ w.wizyta|replace('T', ' ')|czas }}{% endif %} · {{ w.kategoria }} ·{% endif %}
         {% if zarzadca %}{{ w.najemca }}{% if w.lokal_nazwa %} · {{ w.lokal_nazwa }}{% endif %}{% else %}{{ w.lokal_nazwa or 'Wiadomość do zarządcy' }}{% endif %}
         · {{ w.liczba }} {{ 'wiadomość' if w.liczba == 1 else 'wiadomości' }}
-        {% if w.zamkniety %}<span class="badge badge-zakonczona">zamknięta</span>{% endif %}
+        {% if w.zamkniety and w.rodzaj != 'usterka' %}<span class="badge badge-zakonczona">zamknięta</span>{% endif %}
       </span>
-      <span class="mt-last small">{% if (w.ost_od_zarzadcy == 1) == zarzadca %}<span class="muted">Ty: </span>{% endif %}{{ w.ost_tresc|truncate(140, true, '…') }}</span>
+      <span class="mt-last small">{% if not w.ost_systemowa and (w.ost_od_zarzadcy == 1) == zarzadca %}<span class="muted">Ty: </span>{% endif %}{{ (w.ost_tresc or '(zdjęcie)')|truncate(140, true, '…') }}</span>
     </a>
   </li>
 {% endfor %}
@@ -30,28 +39,48 @@
   {% if nowe_od and not moja and m.id > nowe_od and not ns.sep %}{% set ns.sep = true %}
   <li class="msg-new-sep" aria-label="Nowe wiadomości"><span>nowe</span></li>
   {% endif %}
+  {% if m.systemowa %}
+  <li class="msg-sys"{% if loop.last %} id="ostatnia"{% endif %}><span>{{ m.tresc }}</span> <span class="muted">· {{ m.czas|czas }}</span></li>
+  {% else %}
   <li class="msg {{ 'mine' if moja else 'theirs' }}"{% if loop.last %} id="ostatnia"{% endif %}>
     <div class="msg-meta small"><strong>{{ 'Ty' if moja else (m.autor if not m.od_zarzadcy else 'Zarządca') }}</strong>
       <span class="muted">{{ m.czas|czas }}</span></div>
-    <div class="msg-body">{{ m.tresc }}</div>
+    {% if m.tresc %}<div class="msg-body">{{ m.tresc }}</div>{% endif %}
+    {% if m.zdjecia %}<div class="msg-photos">{% for z in m.zdjecia %}
+      <a href="{{ url_for('zalacznik', zid=z) }}" target="_blank" rel="noopener"><img src="{{ url_for('zalacznik', zid=z) }}" alt="Zdjęcie {{ loop.index }}" loading="lazy"></a>
+    {% endfor %}</div>{% endif %}
   </li>
+  {% endif %}
 {% endfor %}
 </ol>
 {% endmacro %}
 
-{% macro odpowiedz(akcja, tresc, errors, tresc_max, zarzadca=false, zamkniety=false) %}
-<form method="post" action="{{ akcja }}" class="form msg-reply" novalidate>
+{% macro pole_zdjec(errors, zdjec_max) %}
+<label class="field{% if errors.zdjecia %} has-error{% endif %}">Zdjęcia
+  <input type="file" name="zdjecia" accept="image/jpeg,image/png" multiple data-max="{{ zdjec_max }}">
+  {% if errors.zdjecia %}<span class="err">{{ errors.zdjecia }}</span>{% else %}<span class="hint">Opcjonalnie, najwyżej {{ zdjec_max }} (JPG lub PNG) — zostaną zmniejszone przed wysłaniem</span>{% endif %}
+</label>
+{% endmacro %}
+
+{% macro odpowiedz(w, akcja, tresc, errors, tresc_max, zdjec_max, zarzadca=false) %}
+<form method="post" action="{{ akcja }}" class="form msg-reply" enctype="multipart/form-data" data-zdjecia novalidate>
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
   <label class="field field-wide{% if errors.tresc %} has-error{% endif %}">Odpowiedź
-    <textarea name="tresc" rows="4" maxlength="{{ tresc_max }}" required
+    <textarea name="tresc" rows="4" maxlength="{{ tresc_max }}"
       placeholder="{{ 'Napisz odpowiedź do najemcy…' if zarzadca else 'Napisz odpowiedź do zarządcy…' }}">{{ tresc }}</textarea>
     {% if errors.tresc %}<span class="err">{{ errors.tresc }}</span>{% endif %}
-    {% if zamkniety and not zarzadca %}<span class="hint">Sprawa jest zamknięta — Twoja odpowiedź otworzy ją ponownie.</span>{% endif %}
+    {% if w.zamkniety and not zarzadca and w.rodzaj == 'wiadomosc' %}<span class="hint">Sprawa jest zamknięta — Twoja odpowiedź otworzy ją ponownie.</span>{% endif %}
     <span class="hint">Ctrl+Enter wysyła wiadomość.</span>
   </label>
+  <div class="form-grid msg-reply-extra">
+    {{ pole_zdjec(errors, zdjec_max) }}
+    {% if not zarzadca and w.rodzaj == 'usterka' and w.zamkniety %}
+    <label class="check"><input type="checkbox" name="ponownie" value="1"> Usterka nadal występuje — otwórz zgłoszenie ponownie</label>
+    {% endif %}
+  </div>
   <div class="form-actions">
     <button class="btn btn-primary" type="submit">Wyślij</button>
-    {% if zarzadca %}<button class="btn btn-ghost" type="submit" name="zamknij" value="1">Wyślij i zamknij sprawę</button>{% endif %}
+    {% if zarzadca and not w.zamkniety %}<button class="btn btn-ghost" type="submit" name="zamknij" value="1">{{ 'Wyślij i oznacz jako naprawione' if w.rodzaj == 'usterka' else 'Wyślij i zamknij sprawę' }}</button>{% endif %}
   </div>
 </form>
 <script>
@@ -60,10 +89,7 @@
   t.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); f.requestSubmit ? f.requestSubmit() : f.submit(); }
   });
-  f.addEventListener('submit', function () {
-    setTimeout(function () { f.querySelectorAll('button').forEach(function (b) { b.disabled = true; }); }, 0);
-  });
-  if (document.querySelectorAll('.msg').length > 3 || location.hash) f.scrollIntoView({block: 'end'});
+  if (document.querySelectorAll('.msg, .msg-sys').length > 3 || location.hash === '#ostatnia') f.scrollIntoView({block: 'end'});
 })();
 </script>
 {% endmacro %}

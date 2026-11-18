@@ -1,17 +1,21 @@
 {% extends "admin/base.html" %}
-{% from "_watek.html" import lista %}
-{% block title %}Wiadomości{% endblock %}
+{% from "_watek.html" import lista, pole_zdjec %}
+{% block title %}Wiadomości i usterki{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Wiadomości</h1><p class="muted">Korespondencja z najemcami{% if nowe_wiadomosci %} · <strong>{{ nowe_wiadomosci }} nieprzeczytanych</strong>{% endif %}</p></div>
+  <div><h1>Wiadomości i usterki</h1><p class="muted">Korespondencja z najemcami i zgłoszenia usterek{% if nowe_wiadomosci %} · <strong>{{ nowe_wiadomosci }} nieprzeczytanych</strong>{% endif %}</p></div>
 </div>
 
-<details class="panel-box add-box msg-new" {% if nowy %}open{% endif %}>
-  <summary>+ Napisz do najemcy</summary>
-  <form method="post" class="form" novalidate autocomplete="off">
+<details class="panel-box add-box msg-new" id="nowa" {% if nowy %}open{% endif %}>
+  <summary>+ Napisz do najemcy / zapisz usterkę</summary>
+  <form method="post" class="form" enctype="multipart/form-data" data-zdjecia novalidate autocomplete="off">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <fieldset class="seg" aria-label="Rodzaj">
+      <label><input type="radio" name="rodzaj" value="wiadomosc" {% if form.rodzaj != 'usterka' %}checked{% endif %}> ✉ Wiadomość</label>
+      <label><input type="radio" name="rodzaj" value="usterka" {% if form.rodzaj == 'usterka' %}checked{% endif %}> <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Usterka (np. zgłoszona telefonicznie)</label>
+    </fieldset>
     <div class="form-grid">
-      <label class="field{% if errors.najemca_id %} has-error{% endif %}">Do
+      <label class="field{% if errors.najemca_id %} has-error{% endif %}">Najemca
         <select name="najemca_id" required>
           <option value="">— wybierz najemcę —</option>
           {% for n in najemcy %}<option value="{{ n.id }}" {% if form.najemca_id == n.id %}selected{% endif %}>{{ n.nazwa }}{% if n.lokal_nazwa %} · {{ n.lokal_nazwa }}{% endif %}</option>{% endfor %}
@@ -19,27 +23,55 @@
         {% if errors.najemca_id %}<span class="err">{{ errors.najemca_id }}</span>{% endif %}
       </label>
       <label class="field{% if errors.temat %} has-error{% endif %}">Temat
-        <input name="temat" value="{{ form.temat or '' }}" maxlength="{{ temat_max }}" required placeholder="np. Przegląd kominiarski 25 listopada">
+        <input name="temat" value="{{ form.temat or '' }}" maxlength="{{ temat_max }}" required
+          data-ph-wiadomosc="np. Przegląd kominiarski 25 listopada" data-ph-usterka="np. Skorodowany, cieknący wężyk pod umywalką"
+          placeholder="np. Przegląd kominiarski 25 listopada">
         {% if errors.temat %}<span class="err">{{ errors.temat }}</span>{% endif %}
       </label>
+      <label class="field only-usterka{% if errors.kategoria %} has-error{% endif %}">Rodzaj usterki
+        <select name="kategoria">
+          <option value="">— wybierz —</option>
+          {% for k in kategorie_usterek %}<option value="{{ k }}" {% if form.kategoria == k %}selected{% endif %}>{{ k }}</option>{% endfor %}
+        </select>
+        {% if errors.kategoria %}<span class="err">{{ errors.kategoria }}</span>{% endif %}
+      </label>
+      <label class="check only-usterka"><input type="checkbox" name="pilna" value="1" {% if form.pilna %}checked{% endif %}> Pilne</label>
     </div>
-    <label class="field field-wide{% if errors.tresc %} has-error{% endif %}">Treść
+    <label class="field field-wide{% if errors.tresc %} has-error{% endif %}"><span class="only-wiadomosc">Treść</span><span class="only-usterka">Opis usterki</span>
       <textarea name="tresc" rows="6" maxlength="{{ tresc_max }}" required>{{ form.tresc or '' }}</textarea>
       {% if errors.tresc %}<span class="err">{{ errors.tresc }}</span>{% endif %}
     </label>
-    <div class="form-actions"><button class="btn btn-primary" type="submit">Wyślij</button></div>
+    <div class="form-grid" style="margin-top:1rem">{{ pole_zdjec(errors, zdjec_max) }}</div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">
+      <span class="only-wiadomosc">Wyślij</span><span class="only-usterka">Zapisz zgłoszenie</span></button></div>
   </form>
 </details>
+<script src="{{ static_v('zdjecia.js') }}"></script>
+<script>
+(function () {
+  var box = document.getElementById('nowa'), form = box.querySelector('form'), temat = form.querySelector('[name=temat]');
+  function pokaz() {
+    var r = form.querySelector('[name=rodzaj]:checked').value;
+    box.dataset.rodzaj = r;
+    temat.placeholder = temat.dataset['ph' + r.charAt(0).toUpperCase() + r.slice(1)];
+  }
+  form.querySelectorAll('[name=rodzaj]').forEach(function (i) { i.addEventListener('change', pokaz); });
+  pokaz();
+})();
+</script>
 
 <form class="toolbar" method="get">
   <select name="status" aria-label="Status" onchange="this.form.submit()">
     {% for v, t in statusy.items() %}<option value="{{ v }}" {% if v == status %}selected{% endif %}>{{ t }}</option>{% endfor %}
   </select>
+  <select name="rodzaj" aria-label="Rodzaj" onchange="this.form.submit()">
+    {% for v, t in rodzaje.items() %}<option value="{{ v }}" {% if v == rodzaj %}selected{% endif %}>{{ t }}</option>{% endfor %}
+  </select>
   <select name="k" aria-label="Najemca" onchange="this.form.submit()">
     <option value="">Wszyscy najemcy</option>
     {% for n in najemcy %}<option value="{{ n.id }}" {% if n.id == k %}selected{% endif %}>{{ n.nazwa }}</option>{% endfor %}
   </select>
-  {% if k or status != 'otwarte' %}<a href="{{ url_for('zarzadca.wiadomosci') }}">Wyczyść</a>{% endif %}
+  {% if k or rodzaj or status != 'otwarte' %}<a href="{{ url_for('zarzadca.wiadomosci') }}">Wyczyść</a>{% endif %}
 </form>
 
 {% if watki %}
@@ -48,6 +80,6 @@
 </section>
 {% else %}
 <div class="placeholder"><strong>{{ 'Brak otwartych spraw' if status == 'otwarte' else 'Brak wiadomości' }}</strong>
-  <span>{{ 'Nowe wiadomości od najemców pojawią się tutaj.' if status == 'otwarte' else 'Zmień filtr, aby zobaczyć inne rozmowy.' }}</span></div>
+  <span>{{ 'Nowe wiadomości i zgłoszenia od najemców pojawią się tutaj.' if status == 'otwarte' else 'Zmień filtr, aby zobaczyć inne sprawy.' }}</span></div>
 {% endif %}
 {% endblock %}

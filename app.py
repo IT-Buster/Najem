@@ -22,9 +22,8 @@ MENU = [
     ("umowy", "Umowy", "Umowy najmu, aneksy, terminy"),
     ("platnosci", "Płatności", "Czynsz, opłaty, historia wpłat, zaległości"),
     ("media", "Liczniki i media", "Odczyty liczników, rozliczenia mediów"),
-    ("zgloszenia", "Zgłoszenia i usterki", "Zgłaszanie awarii i śledzenie napraw"),
     ("dokumenty", "Dokumenty", "Faktury, protokoły zdawczo-odbiorcze, załączniki"),
-    ("wiadomosci", "Wiadomości", "Korespondencja z zarządcą"),
+    ("wiadomosci", "Wiadomości i usterki", "Korespondencja z zarządcą, zgłaszanie usterek i śledzenie napraw"),
     ("konto", "Moje konto", "Dane kontaktowe, zmiana hasła"),
 ]
 MENU_KEYS = {k for k, _, _ in MENU}
@@ -296,6 +295,13 @@ CREATE TABLE IF NOT EXISTS wiadomosci (
     czas      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_wiadomosci_watek ON wiadomosci(watek_id, id);
+-- Zdjęcia dołączone do wiadomości (pliki w instance/zdjecia)
+CREATE TABLE IF NOT EXISTS zalaczniki (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    wiadomosc_id  INTEGER NOT NULL REFERENCES wiadomosci(id) ON DELETE CASCADE,
+    plik          TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_zalaczniki_wiad ON zalaczniki(wiadomosc_id);
 """
 
 
@@ -338,9 +344,33 @@ def init_db():
                                 ("budynki", "prad_indywidualny", "INTEGER NOT NULL DEFAULT 0"),
                                 # wyposażenie wpisywane nowym lokalom budynku (np. podgrzewacz w każdym lokalu)
                                 ("budynki", "wyposazenie_domyslne", "TEXT"),
-                                ("lokale", "kaucja", "INTEGER")]:   # kaucja domyślna do nowej umowy (grosze)
+                                ("lokale", "kaucja", "INTEGER"),    # kaucja domyślna do nowej umowy (grosze)
+                                # wątki: 'wiadomosc' albo 'usterka' (zgłoszenie usterki z obsługą naprawy)
+                                ("watki", "rodzaj", "TEXT NOT NULL DEFAULT 'wiadomosc'"),
+                                ("watki", "kategoria", "TEXT"),
+                                ("watki", "pilna", "INTEGER NOT NULL DEFAULT 0"),
+                                ("watki", "status", "TEXT"),         # usterka: nowe/przyjete/umowiona/naprawione/odrzucone
+                                ("watki", "wizyta", "TEXT"),         # termin naprawy RRRR-MM-DDTGG:MM
+                                ("watki", "koszt", "INTEGER"),       # grosze brutto
+                                ("watki", "kto_placi", "TEXT"),      # 'wynajmujacy' / 'najemca'
+                                ("watki", "wydatek_id", "INTEGER"),   # bez FK: wydatek można usunąć w Wydatkach
+                                ("wiadomosci", "systemowa", "INTEGER NOT NULL DEFAULT 0")]:
             if col not in {r[1] for r in db.execute(f"PRAGMA table_info({table})")}:
                 db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
+        # watki.wydatek_id dodane wcześniej z REFERENCES wydatki(id) blokowało usuwanie wydatku — przebuduj bez FK
+        if any(r[3] == "wydatek_id" for r in db.execute("PRAGMA foreign_key_list(watki)")):
+            sql = db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='watki'").fetchone()[0]
+            sql = sql.replace("wydatek_id INTEGER REFERENCES wydatki(id)", "wydatek_id INTEGER")
+            db.commit()
+            db.execute("PRAGMA foreign_keys=OFF")
+            db.executescript(
+                "BEGIN;"
+                + sql.replace("CREATE TABLE watki", "CREATE TABLE watki_nowe", 1) + ";"
+                "INSERT INTO watki_nowe SELECT * FROM watki;"
+                "DROP TABLE watki;"
+                "ALTER TABLE watki_nowe RENAME TO watki;"
+                "CREATE INDEX IF NOT EXISTS ix_watki_najemca ON watki(najemca_id, zmieniony);"
+                "COMMIT;")
         # dane sprzed budynków: przy jednym budynku przypisz mu faktury i liczniki główne (dawniej lokal_id = 0)
         budynki = [r[0] for r in db.execute("SELECT id FROM budynki")]
         if len(budynki) == 1:
