@@ -12,6 +12,7 @@
 </div>
 
 <div class="stats">
+  <a class="stat{% if nowe_wiadomosci %} stat-warn{% endif %}" href="{{ url_for('zarzadca.wiadomosci') }}"><span>Wiadomości</span><strong>{{ nowe_wiadomosci }}</strong><small class="muted">{{ 'nieprzeczytane od najemców' if nowe_wiadomosci else 'brak nowych' }}</small></a>
   <a class="stat" href="{{ url_for('zarzadca.lokale') }}"><span>Lokale</span><strong>{{ lokale_n }}</strong><small class="muted">wolnych: {{ wolne_n }}</small></a>
   <a class="stat" href="{{ url_for('zarzadca.umowy', status='aktywna') }}"><span>Aktywne umowy</span><strong>{{ aktywne_n }}</strong></a>
   <a class="stat" href="{{ url_for('zarzadca.klienci') }}"><span>Klienci</span><strong>{{ klienci_n }}</strong></a>

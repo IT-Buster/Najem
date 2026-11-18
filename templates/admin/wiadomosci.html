@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% from "_watek.html" import lista %}
+{% block title %}Wiadomości{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Wiadomości</h1><p class="muted">Korespondencja z najemcami{% if nowe_wiadomosci %} · <strong>{{ nowe_wiadomosci }} nieprzeczytanych</strong>{% endif %}</p></div>
+</div>
+
+<details class="panel-box add-box msg-new" {% if nowy %}open{% endif %}>
+  <summary>+ Napisz do najemcy</summary>
+  <form method="post" class="form" novalidate autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <label class="field{% if errors.najemca_id %} has-error{% endif %}">Do
+        <select name="najemca_id" required>
+          <option value="">— wybierz najemcę —</option>
+          {% for n in najemcy %}<option value="{{ n.id }}" {% if form.najemca_id == n.id %}selected{% endif %}>{{ n.nazwa }}{% if n.lokal_nazwa %} · {{ n.lokal_nazwa }}{% endif %}</option>{% endfor %}
+        </select>
+        {% if errors.najemca_id %}<span class="err">{{ errors.najemca_id }}</span>{% endif %}
+      </label>
+      <label class="field{% if errors.temat %} has-error{% endif %}">Temat
+        <input name="temat" value="{{ form.temat or '' }}" maxlength="{{ temat_max }}" required placeholder="np. Przegląd kominiarski 25 listopada">
+        {% if errors.temat %}<span class="err">{{ errors.temat }}</span>{% endif %}
+      </label>
+    </div>
+    <label class="field field-wide{% if errors.tresc %} has-error{% endif %}">Treść
+      <textarea name="tresc" rows="6" maxlength="{{ tresc_max }}" required>{{ form.tresc or '' }}</textarea>
+      {% if errors.tresc %}<span class="err">{{ errors.tresc }}</span>{% endif %}
+    </label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Wyślij</button></div>
+  </form>
+</details>
+
+<form class="toolbar" method="get">
+  <select name="status" aria-label="Status" onchange="this.form.submit()">
+    {% for v, t in statusy.items() %}<option value="{{ v }}" {% if v == status %}selected{% endif %}>{{ t }}</option>{% endfor %}
+  </select>
+  <select name="k" aria-label="Najemca" onchange="this.form.submit()">
+    <option value="">Wszyscy najemcy</option>
+    {% for n in najemcy %}<option value="{{ n.id }}" {% if n.id == k %}selected{% endif %}>{{ n.nazwa }}</option>{% endfor %}
+  </select>
+  {% if k or status != 'otwarte' %}<a href="{{ url_for('zarzadca.wiadomosci') }}">Wyczyść</a>{% endif %}
+</form>
+
+{% if watki %}
+<section class="panel-box">
+  {{ lista(watki, 'zarzadca.wiadomosc', zarzadca=true) }}
+</section>
+{% else %}
+<div class="placeholder"><strong>{{ 'Brak otwartych spraw' if status == 'otwarte' else 'Brak wiadomości' }}</strong>
+  <span>{{ 'Nowe wiadomości od najemców pojawią się tutaj.' if status == 'otwarte' else 'Zmień filtr, aby zobaczyć inne rozmowy.' }}</span></div>
+{% endif %}
+{% endblock %}

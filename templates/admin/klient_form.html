@@ -10,7 +10,7 @@
     {% if k %}<p>{% if k.aktywny %}<span class="badge badge-aktywna">Konto aktywne</span>{% else %}<span class="badge badge-zakonczona">Konto zablokowane</span>{% endif %}
       <span class="muted">· ostatnie logowanie: {{ k.last_login_at|data if k.last_login_at else 'nigdy' }}</span></p>{% endif %}
   </div>
-  {% if k %}<div class="actions"><a class="btn btn-primary" href="{{ url_for('zarzadca.umowa_nowa', klient=k.id) }}">+ Umowa dla klienta</a></div>{% endif %}
+  {% if k %}<div class="actions"><a class="btn btn-ghost" href="{{ url_for('zarzadca.wiadomosci', do=k.id, k=k.id, status='wszystkie') }}">✉ Napisz</a><a class="btn btn-primary" href="{{ url_for('zarzadca.umowa_nowa', klient=k.id) }}">+ Umowa dla klienta</a></div>{% endif %}
 </div>
 
 <form method="post" class="panel-box form" novalidate autocomplete="off">

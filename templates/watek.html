@@ -1,0 +1,16 @@
+{% extends "panel.html" %}
+{% from "_watek.html" import rozmowa, odpowiedz %}
+{% block title %}{{ w.temat }} · Wiadomości{% endblock %}
+{% block content %}
+<p class="small"><a href="{{ wstecz }}">← Wszystkie wiadomości</a></p>
+<div class="page-head">
+  <div><h1>{{ w.temat }}</h1>
+    <p class="muted small">{{ w.lokal_nazwa or 'Wiadomość do zarządcy' }} · rozpoczęta {{ w.utworzony|czas }}
+      {% if w.zamkniety %}· <span class="badge badge-zakonczona">sprawa zamknięta</span>{% endif %}</p></div>
+</div>
+
+<section class="panel-box msg-thread">
+  {{ rozmowa(msgs, nowe_od, moje_od_zarzadcy) }}
+  {{ odpowiedz(akcja, tresc, errors, tresc_max, zarzadca=false, zamkniety=w.zamkniety) }}
+</section>
+{% endblock %}

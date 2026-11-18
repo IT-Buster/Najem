@@ -3,6 +3,6 @@
 {% block brand_suffix %} <span class="role-tag">Zarządca</span>{% endblock %}
 {% block nav %}
 {% for key, label in admin_menu %}
-  <li><a href="{{ url_for('zarzadca.' ~ key) }}" {% if key == active %}aria-current="page"{% endif %}>{{ label }}</a></li>
+  <li><a href="{{ url_for('zarzadca.' ~ key) }}" {% if key == active %}aria-current="page"{% endif %}>{{ label }}{% if key == 'wiadomosci' and nowe_wiadomosci %} <span class="nav-badge" title="Nieprzeczytane">{{ nowe_wiadomosci }}</span>{% endif %}</a></li>
 {% endfor %}
 {% endblock %}

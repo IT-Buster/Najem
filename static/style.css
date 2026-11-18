@@ -349,3 +349,34 @@ details.pay summary { cursor: pointer; color: var(--accent); }
 .table tfoot th, .table tfoot td { padding: .75rem .8rem; border-top: 2px solid var(--line); text-align: left; }
 .table tfoot td.num { text-align: right; }
 .table tfoot th { border-bottom: 0; text-transform: none; letter-spacing: 0; font-size: .95rem; color: var(--text); }
+
+/* ---------- wiadomości ---------- */
+.nav-badge { display: inline-grid; place-items: center; min-width: 1.35rem; height: 1.35rem; padding: 0 .35rem; margin-left: .3rem;
+  border-radius: 999px; background: var(--danger); color: #fff; font-size: .75rem; font-weight: 700; line-height: 1; vertical-align: 1px; }
+.msg-alert { display: block; text-decoration: none; font-weight: 600; }
+.msg-threads { list-style: none; margin: 0; padding: 0; }
+.msg-threads li + li { border-top: 1px solid var(--line); }
+.msg-threads a { display: flex; flex-direction: column; gap: .15rem; padding: .8rem .4rem; color: var(--text); text-decoration: none; border-radius: 8px; }
+.msg-threads a:hover { background: var(--bg); }
+.mt-top { display: flex; align-items: center; gap: .4rem; min-width: 0; }
+.mt-subj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.unread .mt-subj { font-weight: 700; }
+.mt-when { margin-left: auto; white-space: nowrap; padding-left: .6rem; }
+.mt-last { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unread .mt-last { color: var(--text); }
+.msg-threads .closed a { opacity: .75; }
+.msg-thread { max-width: 52rem; }
+.msg-list { list-style: none; margin: 0 0 .5rem; padding: 0; display: flex; flex-direction: column; gap: .7rem; }
+.msg { max-width: min(38rem, 88%); padding: .6rem .85rem; border-radius: 14px; background: var(--bg); border: 1px solid var(--line); }
+.msg.mine { align-self: flex-end; background: var(--accent-soft); border-color: transparent; border-bottom-right-radius: 4px; }
+.msg.theirs { align-self: flex-start; border-bottom-left-radius: 4px; }
+.msg-meta { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; margin-bottom: .15rem; }
+.msg-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg-new-sep { display: flex; align-items: center; gap: .6rem; color: var(--danger); font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.msg-new-sep::before, .msg-new-sep::after { content: ""; flex: 1; border-top: 1px solid currentColor; opacity: .4; }
+.msg-reply { border-top: 1px solid var(--line); margin-top: 1rem; }
+.msg-reply .field-wide { margin-top: .8rem; }
+.msg-reply textarea { width: 100%; }
+.msg-new textarea { width: 100%; }
+.msg-new input[name=temat] { width: 100%; }
+@media (max-width: 760px) { .msg { max-width: 94%; } }

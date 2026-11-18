@@ -1,0 +1,42 @@
+{% extends "panel.html" %}
+{% from "_watek.html" import lista %}
+{% block title %}Wiadomości{% endblock %}
+{% block content %}
+<h1>Wiadomości</h1>
+<p class="muted">Korespondencja z zarządcą — pytania, prośby, sprawy do załatwienia</p>
+
+<details class="panel-box add-box msg-new" {% if nowy %}open{% endif %}>
+  <summary>+ Nowa wiadomość do zarządcy</summary>
+  <form method="post" class="form" novalidate autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <label class="field{% if errors.temat %} has-error{% endif %}">Temat
+        <input name="temat" value="{{ form.temat or '' }}" maxlength="{{ temat_max }}" required placeholder="np. Cieknący kran w łazience">
+        {% if errors.temat %}<span class="err">{{ errors.temat }}</span>{% endif %}
+      </label>
+      {% if lokale|length > 1 %}
+      <label class="field">Lokal
+        <select name="lokal_id">
+          <option value="">— ogólnie —</option>
+          {% for l in lokale %}<option value="{{ l.id }}" {% if form.lokal_id == l.id %}selected{% endif %}>{{ l.nazwa }}</option>{% endfor %}
+        </select>
+      </label>
+      {% endif %}
+    </div>
+    <label class="field field-wide{% if errors.tresc %} has-error{% endif %}">Treść
+      <textarea name="tresc" rows="6" maxlength="{{ tresc_max }}" required>{{ form.tresc or '' }}</textarea>
+      {% if errors.tresc %}<span class="err">{{ errors.tresc }}</span>{% endif %}
+    </label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Wyślij do zarządcy</button></div>
+  </form>
+</details>
+
+{% if watki %}
+<section class="panel-box">
+  <h2>Twoje rozmowy</h2>
+  {{ lista(watki, 'wiadomosc') }}
+</section>
+{% else %}
+<div class="placeholder"><strong>Brak wiadomości</strong><span>Napisz do zarządcy — odpowiedź zobaczysz tutaj.</span></div>
+{% endif %}
+{% endblock %}

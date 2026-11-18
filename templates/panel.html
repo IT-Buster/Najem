@@ -20,7 +20,7 @@
     <ul>
     {% block nav %}
     {% for key, label, _ in menu %}
-      <li><a href="{{ url_for('section', key=key) }}" {% if key == active %}aria-current="page"{% endif %}>{{ label }}</a></li>
+      <li><a href="{{ url_for('section', key=key) }}" {% if key == active %}aria-current="page"{% endif %}>{{ label }}{% if key == 'wiadomosci' and nowe_wiadomosci %} <span class="nav-badge" title="Nieprzeczytane">{{ nowe_wiadomosci }}</span>{% endif %}</a></li>
     {% endfor %}
     {% endblock %}
     </ul>

@@ -4,6 +4,10 @@
 <h1>Pulpit</h1>
 <p class="muted">Saldo, ostatnie naliczenia i wpłaty</p>
 
+{% if nowe_wiadomosci %}
+<a class="flash msg-alert" href="{{ url_for('wiadomosci') }}">✉ Masz {{ nowe_wiadomosci }} {{ 'nową wiadomość' if nowe_wiadomosci == 1 else ('nowe wiadomości' if nowe_wiadomosci % 10 in [2,3,4] and nowe_wiadomosci % 100 not in [12,13,14] else 'nowych wiadomości') }} od zarządcy →</a>
+{% endif %}
+
 {% if salda %}
 <div class="stats">
   {% for s in salda %}

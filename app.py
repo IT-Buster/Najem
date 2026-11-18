@@ -272,6 +272,30 @@ CREATE TABLE IF NOT EXISTS aneksy (
     data      TEXT NOT NULL,
     opis      TEXT NOT NULL
 );
+
+-- Wiadomości: wątki korespondencji najemca ↔ zarządca.
+-- przecz_najemca / przecz_zarzadca = id ostatniej wiadomości, którą dana strona już widziała.
+CREATE TABLE IF NOT EXISTS watki (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    najemca_id       INTEGER NOT NULL REFERENCES users(id),
+    lokal_id         INTEGER REFERENCES lokale(id),
+    temat            TEXT NOT NULL,
+    zamkniety        INTEGER NOT NULL DEFAULT 0,
+    utworzony        TEXT NOT NULL,                 -- RRRR-MM-DD GG:MM:SS (czas lokalny)
+    zmieniony        TEXT NOT NULL,                 -- czas ostatniej wiadomości
+    przecz_najemca   INTEGER NOT NULL DEFAULT 0,
+    przecz_zarzadca  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_watki_najemca ON watki(najemca_id, zmieniony);
+CREATE TABLE IF NOT EXISTS wiadomosci (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    watek_id  INTEGER NOT NULL REFERENCES watki(id) ON DELETE CASCADE,
+    autor_id  INTEGER NOT NULL REFERENCES users(id),
+    od_zarzadcy INTEGER NOT NULL DEFAULT 0,
+    tresc     TEXT NOT NULL,
+    czas      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_wiadomosci_watek ON wiadomosci(watek_id, id);
 """
 
 
@@ -648,6 +672,7 @@ import rozliczenia  # noqa: E402,F401  (dokłada widoki do panelu zarządcy i kl
 import budynki  # noqa: E402,F401
 import podatek  # noqa: E402,F401
 import pomiary  # noqa: E402,F401
+import wiadomosci  # noqa: E402,F401
 app.register_blueprint(admin_bp)
 
 if __name__ == "__main__":

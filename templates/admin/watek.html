@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% from "_watek.html" import rozmowa, odpowiedz %}
+{% block title %}{{ w.temat }} · Wiadomości{% endblock %}
+{% block content %}
+<p class="small"><a href="{{ wstecz }}">← Wszystkie wiadomości</a></p>
+<div class="page-head">
+  <div><h1>{{ w.temat }}</h1>
+    <p class="muted small"><a href="{{ url_for('zarzadca.wiadomosci', k=w.najemca_id, status='wszystkie') }}">{{ w.najemca }}</a>
+      {% if w.lokal_nazwa %} · {{ w.lokal_nazwa }}{% endif %} · rozpoczęta {{ w.utworzony|czas }}
+      {% if w.zamkniety %}· <span class="badge badge-zakonczona">sprawa zamknięta</span>{% endif %}</p></div>
+  <form method="post" action="{{ url_for('zarzadca.wiadomosc_status', wid=w.id) }}" class="inline">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    {% if w.zamkniety %}
+    <input type="hidden" name="zamkniety" value="0"><button class="btn btn-ghost btn-sm" type="submit">Otwórz ponownie</button>
+    {% else %}
+    <input type="hidden" name="zamkniety" value="1"><button class="btn btn-ghost btn-sm" type="submit">✓ Zamknij sprawę</button>
+    {% endif %}
+  </form>
+</div>
+
+<section class="panel-box msg-thread">
+  {{ rozmowa(msgs, nowe_od, moje_od_zarzadcy) }}
+  {{ odpowiedz(akcja, tresc, errors, tresc_max, zarzadca=true, zamkniety=w.zamkniety) }}
+</section>
+{% endblock %}
