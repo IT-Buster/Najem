@@ -9,11 +9,11 @@
 
 <form class="toolbar" method="get">
   <select name="status" aria-label="Status" onchange="this.form.submit()">
-    {% for v, t in statusy %}<option value="{{ v }}" {% if v == st %}selected{% endif %}>{{ t }}</option>{% endfor %}
+    {% for v, t in statusy %}<option value="{{ v }}" {% if v == st %}selected{% endif %}>{{ t }} ({{ liczby[v] }})</option>{% endfor %}
   </select>
   <input name="q" value="{{ q }}" placeholder="Szukaj: numer, lokal, najemca" aria-label="Szukaj">
   <button class="btn btn-ghost" type="submit">Szukaj</button>
-  {% if q or st %}<a href="{{ url_for('zarzadca.umowy') }}">Wyczyść</a>{% endif %}
+  {% if q or st != 'aktywne' %}<a href="{{ url_for('zarzadca.umowy') }}">Wyczyść</a>{% endif %}
 </form>
 
 {% if rows %}
@@ -33,6 +33,6 @@
   </tbody>
 </table></div>
 {% else %}
-<div class="placeholder"><strong>Brak umów</strong><span>{% if q or st %}Nic nie pasuje do filtrów.{% else %}Dodaj pierwszą umowę.{% endif %}</span></div>
+<div class="placeholder"><strong>Brak umów</strong><span>{% if q or liczby.wszystkie %}Nic nie pasuje do filtrów.{% else %}Dodaj pierwszą umowę.{% endif %}</span></div>
 {% endif %}
 {% endblock %}

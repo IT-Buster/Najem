@@ -302,23 +302,29 @@ def lokal_usun(lid):
 
 
 # ---------- umowy ----------
-STATUSY = [("", "Wszystkie"), ("aktywna", "Aktywne"), ("konczy", "Kończące się"),
-           ("przyszla", "Przyszłe"), ("zakonczona", "Zakończone")]
+STATUSY = [("aktywne", "Aktywne"), ("konczy", "Kończące się"), ("przyszla", "Przyszłe"),
+           ("zakonczona", "Zakończone"), ("wszystkie", "Wszystkie")]
+GRUPY_STATUSU = {"aktywne": {"aktywna", "konczy"}, "konczy": {"konczy"}, "przyszla": {"przyszla"},
+                 "zakonczona": {"zakonczona"}, "wszystkie": {"aktywna", "konczy", "przyszla", "zakonczona"}}
 
 
 @bp.get("/umowy")
 def umowy():
-    st = request.args.get("status", "")
+    st = request.args.get("status", "aktywne")          # domyślnie bieżące (aktywne, w tym kończące się)
+    st = {"aktywna": "aktywne", "": "aktywne"}.get(st, st)
+    if st not in GRUPY_STATUSU:
+        st = "aktywne"
     q = request.args.get("q", "").strip()
     sql, args = UMOWY_SQL, []
     if q:
         sql += " WHERE u.numer LIKE ? OR l.nazwa LIKE ? OR k.full_name LIKE ? OR k.login LIKE ?"
         args = [f"%{q}%"] * 4
-    rows = get_db().execute(sql + " ORDER BY u.data_od DESC", args).fetchall()
-    if st:
-        rows = [u for u in rows if status_umowy(u)[0] == st]
+    wszystkie = get_db().execute(sql + " ORDER BY u.data_od DESC", args).fetchall()
+    kody = [(u, status_umowy(u)[0]) for u in wszystkie]
+    rows = [u for u, k in kody if k in GRUPY_STATUSU[st]]
+    liczby = {v: sum(1 for _, k in kody if k in GRUPY_STATUSU[v]) for v, _ in STATUSY}
     return render_template("admin/umowy.html", active="umowy", rows=rows,
-                           statusy=STATUSY, st=st, q=q)
+                           statusy=STATUSY, st=st, q=q, liczby=liczby)
 
 
 def _opcje():
