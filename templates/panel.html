@@ -4,7 +4,7 @@
 <input type="checkbox" id="nav-toggle" class="nav-toggle" hidden>
 <header class="appbar">
   <label for="nav-toggle" class="burger" aria-label="Menu">☰</label>
-  <a class="brand" href="{% block home_url %}{{ url_for('panel') }}{% endblock %}"><img class="logo" src="{{ url_for('static', filename='logo.svg') }}" alt="" width="32" height="32"> Najem{% block brand_suffix %}{% endblock %}</a>
+  <a class="brand" href="{% block home_url %}{{ url_for('panel') }}{% endblock %}"><img class="logo" src="{{ url_for('logo') }}" alt="" width="32" height="32"> Najem{% block brand_suffix %}{% endblock %}</a>
   <div class="who">
     {% if user.full_name %}<span class="muted">{{ user.full_name }}</span>{% endif %}
     <span class="who-login" title="Zalogowano jako {{ user.login }}">{{ user.login }}</span>

@@ -10,3 +10,10 @@ __pycache__/
 venv/
 .env
 *.log
+
+# dane instancji z prawdziwymi danymi (asystentnajmu.bk.waw.pl) — trzymane poza repo, ale na wszelki wypadek
+asystentnajmu-dane/
+instance-*/
+secret_key
+motyw
+nazwa_serwisu

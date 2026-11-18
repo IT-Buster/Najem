@@ -4,11 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Najem{% endblock %} · {{ nazwa_serwisu }}</title>
-<meta name="theme-color" content="#1f6f5c">
-<link rel="icon" href="{{ url_for('static', filename='logo.svg') }}" type="image/svg+xml">
-<link rel="icon" href="{{ url_for('static', filename='favicon-32.png') }}" sizes="32x32" type="image/png">
-<link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+<meta name="theme-color" content="{{ kolory.accent }}">
+{% set sufiks = '' if motyw == 'zielony' else '-' ~ motyw %}
+<link rel="icon" href="{{ url_for('logo') }}" type="image/svg+xml">
+<link rel="icon" href="{{ url_for('static', filename='favicon-32' ~ sufiks ~ '.png') }}" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon' ~ sufiks ~ '.png') }}">
 <link rel="stylesheet" href="{{ static_v('style.css') }}">
+{% if motyw != 'zielony' %}<style>
+:root { --accent: {{ kolory.accent }}; --accent-ink: {{ kolory.ink }}; --accent-soft: {{ kolory.soft }}; }
+@media (prefers-color-scheme: dark) { :root { --accent: {{ kolory.accent_dark }}; --accent-ink: {{ kolory.ink_dark }}; --accent-soft: {{ kolory.soft_dark }}; } }
+</style>{% endif %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
 {% block body %}{% endblock %}

@@ -1,36 +1,43 @@
 #!/bin/sh
-# Startuje aplikację Najem w tle (gunicorn na :8000), jeśli jeszcze nie działa.
-# Można wołać wielokrotnie — drugi start nic nie robi.
+# Startuje instancje aplikacji Najem w tle (gunicorn), jeśli jeszcze nie działają.
+# Jeden kod, osobne dane: każda instancja ma własny katalog (baza, klucz sesji, zdjęcia, log, PID),
+# własny port i odpowiada tylko na swoją domenę.
 #
-# Przy starcie kontenera (komenda kontenera zamiast samego `sleep infinity`):
-#   sh -c '/workspace/najem/autostart.sh; exec sleep infinity'
+#   demo (dane fikcyjne)   najem.bk.waw.pl          :8000   instance/
+#   prawdziwe dane         asystentnajmu.bk.waw.pl  :8001   /workspace/asystentnajmu-dane/
 #
-# Przeładowanie po zmianach w kodzie: kill -HUP "$(cat instance/gunicorn.pid)"
+# Można wołać wielokrotnie — działająca instancja jest pomijana.
+# Przy starcie kontenera:  sh -c '/workspace/najem/autostart.sh; exec sleep infinity'
+# Przeładowanie po zmianach w kodzie (każda instancja osobno):
+#   kill -HUP "$(cat instance/gunicorn.pid)"
+#   kill -HUP "$(cat /workspace/asystentnajmu-dane/gunicorn.pid)"
 cd "$(dirname "$0")" || exit 1
+GUNICORN=../.venv/bin/gunicorn
 
-PID_FILE=instance/gunicorn.pid
-LOG_FILE=instance/gunicorn.log
-
-if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-    echo "Najem już działa (PID $(cat "$PID_FILE"))."
-    exit 0
-fi
-
-mkdir -p instance
-../.venv/bin/gunicorn -w 2 -b 0.0.0.0:8000 \
-    --daemon --pid "$PID_FILE" \
-    --access-logfile "$LOG_FILE" --error-logfile "$LOG_FILE" \
-    app:app || exit 1
-
-# poczekaj, aż aplikacja odpowie
-i=0
-while [ $i -lt 20 ]; do
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        echo "Najem uruchomiony (PID $(cat "$PID_FILE")), log: $LOG_FILE"
-        exit 0
+start() {   # nazwa katalog port domeny
+    nazwa=$1; katalog=$2; port=$3; hosty=$4
+    pid="$katalog/gunicorn.pid"; log="$katalog/gunicorn.log"
+    if [ -f "$pid" ] && kill -0 "$(cat "$pid")" 2>/dev/null; then
+        echo "$nazwa już działa (PID $(cat "$pid"), port $port)."
+        return 0
     fi
-    sleep 0.5
-    i=$((i + 1))
-done
-echo "Najem nie wystartował — zobacz $LOG_FILE" >&2
-exit 1
+    mkdir -p "$katalog"
+    NAJEM_INSTANCE="$katalog" NAJEM_HOSTY="$hosty" "$GUNICORN" -w 2 -b "0.0.0.0:$port" \
+        --daemon --pid "$pid" --access-logfile "$log" --error-logfile "$log" app:app || return 1
+    i=0
+    while [ $i -lt 20 ]; do
+        if [ -f "$pid" ] && kill -0 "$(cat "$pid")" 2>/dev/null; then
+            echo "$nazwa uruchomiony (PID $(cat "$pid"), port $port), log: $log"
+            return 0
+        fi
+        sleep 0.5
+        i=$((i + 1))
+    done
+    echo "$nazwa nie wystartował — zobacz $log" >&2
+    return 1
+}
+
+ok=0
+start "Najem demo" instance 8000 najem.bk.waw.pl || ok=1
+start "Asystent najmu" /workspace/asystentnajmu-dane 8001 asystentnajmu.bk.waw.pl || ok=1
+exit $ok

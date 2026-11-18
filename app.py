@@ -12,8 +12,12 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE = Path(__file__).resolve().parent
-INSTANCE = BASE / "instance"
+# Katalog danych instancji: baza, klucz sesji, zdjęcia, nazwa serwisu, log i PID.
+# Jeden kod może obsługiwać kilka instancji (np. demo i prawdziwe dane) — każda z własnym NAJEM_INSTANCE.
+INSTANCE = Path(os.environ.get("NAJEM_INSTANCE") or BASE / "instance").resolve()
 DB_PATH = Path(os.environ.get("NAJEM_DB", INSTANCE / "najem.sqlite3"))
+# Domeny, na które ta instancja odpowiada (po przecinku); puste = każda. localhost zawsze (testy, /zdrowie).
+HOSTY = {h.strip().lower() for h in os.environ.get("NAJEM_HOSTY", "").split(",") if h.strip()}
 
 # Pozycje menu — na razie tylko szkic, bez implementacji.
 MENU = [
@@ -437,6 +441,42 @@ def _nazwa_serwisu():
 app.jinja_env.globals["nazwa_serwisu"] = _nazwa_serwisu()
 
 
+# Motyw instancji: kolor wiodący (przyciski, menu, linki, logo, ikona karty) — żeby instancje było łatwo odróżnić.
+# NAJEM_MOTYW albo plik instance/motyw; domyślnie zielony.
+MOTYWY = {
+    "zielony": {"accent": "#1f6f5c", "ink": "#ffffff", "soft": "#e3f0ec",
+                "accent_dark": "#4fb89c", "ink_dark": "#0d1f1a", "soft_dark": "#1b2e29"},
+    "fiolet":  {"accent": "#5b3e9c", "ink": "#ffffff", "soft": "#ece6f6",
+                "accent_dark": "#b9a2ec", "ink_dark": "#1c1230", "soft_dark": "#2a2240"},
+}
+
+
+def _motyw():
+    f = INSTANCE / "motyw"
+    nazwa = os.environ.get("NAJEM_MOTYW") or (f.read_text().strip() if f.exists() else "zielony")
+    return nazwa if nazwa in MOTYWY else "zielony"
+
+
+MOTYW = _motyw()
+app.jinja_env.globals.update(motyw=MOTYW, kolory=MOTYWY[MOTYW])
+
+LOGO_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="{k}"/>
+  <path d="M11 33 32 14l21 19" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M19 32 32 20.5 45 32v17a2 2 0 0 1-2 2H21a2 2 0 0 1-2-2Z" fill="#fff"/>
+  <circle cx="32" cy="36.5" r="4.2" fill="{k}"/>
+  <path d="M29.6 38.5h4.8l1.3 7.5h-7.4Z" fill="{k}"/>
+</svg>
+"""
+
+
+@app.get("/logo.svg")
+def logo():
+    """Logo w kolorze motywu instancji (static/logo.svg zostaje zielone — do README)."""
+    return LOGO_SVG.format(k=MOTYWY[MOTYW]["accent"]), 200, {
+        "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400"}
+
+
 def check_csrf():
     sent = request.form.get("_csrf", "")
     if not sent or not secrets.compare_digest(sent, session.get("_csrf", "")):
@@ -481,6 +521,13 @@ def too_many_attempts(login_, ip):
 
 
 @app.before_request
+def tylko_swoja_domena():
+    """Instancja z prawdziwymi danymi nie odpowie pod adresem demo (i odwrotnie), nawet przy pomyłce w proxy."""
+    if HOSTY and request.host.split(":")[0].lower() not in HOSTY | {"127.0.0.1", "localhost"}:
+        abort(404)
+
+
+@app.before_request
 def load_user():
     g.user = None
     uid = session.get("user_id")
@@ -500,7 +547,8 @@ def inject():
 # ---------- widoki ----------
 @app.get("/favicon.ico")
 def favicon():
-    return app.send_static_file("favicon-32.png"), 200, {"Cache-Control": "public, max-age=604800"}
+    plik = "favicon-32.png" if MOTYW == "zielony" else f"favicon-32-{MOTYW}.png"
+    return app.send_static_file(plik), 200, {"Cache-Control": "public, max-age=604800"}
 
 
 @app.get("/")
