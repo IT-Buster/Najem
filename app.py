@@ -528,6 +528,14 @@ def tylko_swoja_domena():
 
 
 @app.before_request
+def wymus_https():
+    """Ciasteczko sesji ma flagę Secure — przez http logowanie by nie działało (400), więc przekierowujemy na https."""
+    if (app.config["SESSION_COOKIE_SECURE"] and request.scheme == "http"
+            and request.host.split(":")[0].lower() not in {"127.0.0.1", "localhost"}):
+        return redirect(request.url.replace("http://", "https://", 1), 301 if request.method in ("GET", "HEAD") else 308)
+
+
+@app.before_request
 def load_user():
     g.user = None
     uid = session.get("user_id")
