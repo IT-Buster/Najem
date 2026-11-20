@@ -50,6 +50,9 @@
     {{ field(f, "wypowiedzenie", "Okres wypowiedzenia", hint="np. 1 miesiąc") }}
     {{ field(f, "liczba_osob", "Liczba osób", type="number", hint="Do naliczania opłaty za śmieci", attrs="min=1 max=20 required") }}
   </div>
+  <label class="check"><input type="checkbox" name="tylko_informacja" value="1" {% if f.raw.get("tylko_informacja") == "1" %}checked{% endif %}>
+    Tylko informacja — bez zawiadomień o płatności (np. mieszkanie zarządcy). Najemca widzi w panelu swoje zużycie,
+    udział w kosztach mediów i faktury MWiO / OPEC.</label>
   {{ area(f, "uwagi", "Uwagi", hint="Widoczne dla najemcy", rows=3) }}
 
   <div class="form-actions">

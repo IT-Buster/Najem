@@ -17,7 +17,7 @@ import gmail
 from admin import Form, _insert, bp
 from app import get_db
 from pomiary import OKNO, _liczba, _zapisz_zdjecie, auto_przenies, granica, kandydat, przenies_okres
-from rozliczenia import (NAZWA_LICZNIKA, OKRES_RE, _faktura_form, biezacy, budynek, glowny_id, ma_cieplo, nastepny,
+from rozliczenia import (NAZWA_LICZNIKA, OKRES_RE, _faktura_form, biezacy, budynek, fmt_okres, glowny_id, ma_cieplo, nastepny,
                          oblicz, odczyt, poprzedni, umowy_w_okresie, wybrany_budynek, wystaw, zuzycie)
 
 RODZAJE = ("woda", "cieplo")
@@ -41,7 +41,7 @@ def domyslny_okres(bid):
 
 
 def domyslnie_wystawiac(u):
-    """Umowa bez czynszu i bez żadnego zawiadomienia (np. mieszkanie zarządcy) — domyślnie pomijana."""
+    """Umowa bez czynszu i bez żadnego zawiadomienia — domyślnie odznaczona."""
     return bool(u["czynsz"]) or get_db().execute("SELECT 1 FROM naliczenia WHERE umowa_id=? LIMIT 1",
                                                  (u["id"],)).fetchone() is not None
 
@@ -128,8 +128,8 @@ def _ctx(b, bl, okres, **kw):
     gm = gmail.dane()
     return dict(active="kreator", b=b, budynki=bl, okres=okres, om=om, liczniki=lc, faktury=fv, potrzebne=potrzebne,
                 podglad=podglad, krok1=krok1 or not lc, krok2=krok2, bez_licznikow=not lc,
-                do_wystawienia=sum(1 for p in podglad if not p["n"]),
-                gmail_login=gm["login"] if gm else None, nazwa_licznika=NAZWA_LICZNIKA, jedn=JEDN,
+                do_wystawienia=sum(1 for p in podglad if not p["n"] and not p["u"]["tylko_informacja"]),
+                gmail_login=gm["login"] if gm else None, odbiorcy=gmail.odbiorcy(), nazwa_licznika=NAZWA_LICZNIKA, jedn=JEDN,
                 dzis=date.today().isoformat(), **kw)
 
 
@@ -234,6 +234,7 @@ def kreator_faktura():
     _insert("faktury", f.clean)
     get_db().commit()
     flash(f"Dodano fakturę {f.clean['numer']} ({'woda' if f.clean['rodzaj'] == 'woda' else 'ciepło'}).", "ok")
+    powiadom_faktura(f.clean)
     return redirect(url_for(".kreator", b=f.clean["budynek_id"], okres=okres) + "#faktury")
 
 
@@ -271,9 +272,44 @@ def kreator_wystaw():
     nowe = 0
     wybrane = set(request.form.getlist("umowa", type=int))
     for u in umowy_budynku(b["id"], okres):
-        if u["id"] in wybrane and not db.execute("SELECT 1 FROM naliczenia WHERE umowa_id=? AND okres_czynsz=?", (u["id"], okres)).fetchone():
+        if u["id"] in wybrane and not u["tylko_informacja"] and not db.execute("SELECT 1 FROM naliczenia WHERE umowa_id=? AND okres_czynsz=?", (u["id"], okres)).fetchone():
             wystaw(u, okres)
             nowe += 1
     db.commit()
     flash(f"Wystawiono zawiadomienia: {nowe}." if nowe else "Nie było nic do wystawienia.", "ok")
+    if nowe:
+        powiadom_zawiadomienia(okres)
     return redirect(url_for(".kreator", b=b["id"], okres=okres) + "#wystaw")
+
+
+# ---------- powiadomienia e-mail ----------
+def _liczba_txt(v):
+    return f"{float(v):g}".replace(".", ",")
+
+
+def _zl(gr):
+    return f"{gr / 100:,.2f} zł".replace(",", " ").replace(".", ",")
+
+
+def powiadom_faktura(f):
+    b = budynek(int(f["budynek_id"]))
+    co = "MWiO — woda i ścieki" if f["rodzaj"] == "woda" else "OPEC — ciepło"
+    jedn = JEDN[f["rodzaj"]]
+    tresc = (f"Dodano fakturę {co} za {fmt_okres(f['okres'])} ({b['nazwa'] if b else ''}).\n\n"
+             f"Numer: {f['numer']}\nKwota brutto: {_zl(f['kwota'])}\nZużycie: {_liczba_txt(f['zuzycie'])} {jedn}\n")
+    if f["rodzaj"] == "cieplo" and f["oplata_stala"]:
+        tresc += f"Opłaty stałe: {_zl(f['oplata_stala'])}\n"
+    if f["rodzaj"] == "woda" and f["odliczenie"]:
+        tresc += f"Odliczenie (woda ogrodowa): {_zl(f['odliczenie'])}\n"
+    tresc += f"\n{request.url_root.rstrip('/')}{url_for('.faktury')}\n"
+    gmail.powiadom(f"Faktura {co.split(' — ')[0]} za {fmt_okres(f['okres'])}: {_zl(f['kwota'])}", tresc)
+
+
+def powiadom_zawiadomienia(okres):
+    rows = get_db().execute("""SELECT l.nazwa, n.do_zaplaty FROM naliczenia n JOIN umowy u ON u.id=n.umowa_id
+                               JOIN lokale l ON l.id=u.lokal_id WHERE n.okres_czynsz=? ORDER BY l.nazwa""", (okres,)).fetchall()
+    tresc = f"Wystawiono zawiadomienia za {fmt_okres(okres)}:\n\n" + "".join(
+        f"  {r['nazwa']}: {_zl(r['do_zaplaty'])}\n" for r in rows)
+    tresc += f"\nRazem: {_zl(sum(r['do_zaplaty'] for r in rows))}\n\n"
+    tresc += f"{request.url_root.rstrip('/')}{url_for('.rozliczenia', okres=okres)}\n"
+    gmail.powiadom(f"Zawiadomienia za {fmt_okres(okres)} wystawione", tresc)

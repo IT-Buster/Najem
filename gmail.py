@@ -166,3 +166,45 @@ def szukaj(od_dnia, login=None, haslo=None, imap=None):
             imap.logout()
         except Exception:
             pass
+
+
+# ---------- wysyłka powiadomień (SMTP Gmail, to samo hasło do aplikacji) ----------
+def odbiorcy():
+    """Aktywni zarządcy z adresem e-mail."""
+    from app import get_db
+    return [r[0] for r in get_db().execute(
+        "SELECT DISTINCT email FROM users WHERE role='zarzadca' AND aktywny=1 AND coalesce(email,'')<>''")]
+
+
+def wyslij(do, temat, tresc, d=None):
+    import smtplib
+    from email.message import EmailMessage
+    d = d or dane()
+    if not d:
+        raise BladGmail("Skrzynka Gmail nie jest skonfigurowana — e-mail nie został wysłany.")
+    m = EmailMessage()
+    m["From"] = f"Asystent najmu <{d['login']}>"
+    m["To"] = ", ".join(do)
+    m["Subject"] = temat
+    m.set_content(tresc)
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as s:
+            s.login(d["login"], d["haslo"])
+            s.send_message(m)
+    except smtplib.SMTPAuthenticationError:
+        raise BladGmail("Gmail odrzucił logowanie przy wysyłce — sprawdź hasło do aplikacji.")
+    except (smtplib.SMTPException, OSError) as e:
+        raise BladGmail(f"Nie udało się wysłać e-maila ({e.__class__.__name__}).")
+
+
+def powiadom(temat, tresc):
+    """Wysyła powiadomienie do zarządców z e-mailem. Błąd wysyłki nie przerywa pracy — tylko komunikat."""
+    from flask import flash
+    do = odbiorcy()
+    if not do or not dane():
+        return
+    try:
+        wyslij(do, temat, tresc)
+        flash(f"Wysłano powiadomienie e-mail: {', '.join(do)}.", "ok")
+    except BladGmail as e:
+        flash(f"Powiadomienie e-mail nie zostało wysłane: {e}", "err")

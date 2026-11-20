@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+{% block title %}Zarządcy{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Zarządcy</h1><p class="muted">Konta z dostępem do panelu zarządcy</p></div>
+</div>
+
+<details class="panel-box add-box" {% if nowy %}open{% endif %}>
+  <summary>+ Dodaj zarządcę</summary>
+  <form method="post" class="form" novalidate autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <label class="field{% if errors.full_name %} has-error{% endif %}">Imię i nazwisko
+        <input name="full_name" value="{{ form.full_name or '' }}" required>
+        {% if errors.full_name %}<span class="err">{{ errors.full_name }}</span>{% endif %}</label>
+      <label class="field{% if errors.login %} has-error{% endif %}">Login
+        <input name="login" value="{{ form.login or '' }}" required autocomplete="off">
+        {% if errors.login %}<span class="err">{{ errors.login }}</span>{% else %}<span class="hint">Inny niż login najemcy, np. nazwisko.zarzadca</span>{% endif %}</label>
+      <label class="field{% if errors.email %} has-error{% endif %}">E-mail
+        <input type="email" name="email" value="{{ form.email or '' }}">
+        {% if errors.email %}<span class="err">{{ errors.email }}</span>{% else %}<span class="hint">Na ten adres przychodzą powiadomienia o fakturach i zawiadomieniach</span>{% endif %}</label>
+      <label class="field{% if errors.haslo %} has-error{% endif %}">Hasło startowe
+        <input type="password" name="haslo" autocomplete="new-password" minlength="{{ haslo_min }}" required>
+        {% if errors.haslo %}<span class="err">{{ errors.haslo }}</span>{% else %}<span class="hint">Co najmniej {{ haslo_min }} znaków; zarządca zmieni je w „Moje konto”</span>{% endif %}</label>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Dodaj zarządcę</button></div>
+  </form>
+</details>
+
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Zarządca</th><th>Ostatnie logowanie</th><th>Konto</th><th>Nowe hasło</th><th></th></tr></thead>
+  <tbody>{% for z in rows %}
+    <tr>
+      <td data-label="Zarządca"><strong>{{ z.full_name or z.login }}</strong>{% if z.id == user.id %} <span class="muted small">(Ty)</span>{% endif %}
+        <span class="line muted small">{{ z.login }}{% if z.email %} · {{ z.email }}{% endif %}</span></td>
+      <td data-label="Ostatnie logowanie">{{ z.last_login_at|data if z.last_login_at else 'nigdy' }}</td>
+      <td data-label="Konto">{% if z.aktywny %}<span class="badge badge-aktywna">Aktywne</span>{% else %}<span class="badge badge-zakonczona">Zablokowane</span>{% endif %}</td>
+      <td data-label="Nowe hasło">
+        {% if z.id != user.id %}
+        <form method="post" action="{{ url_for('zarzadca.zarzadca_zmiana', zid=z.id) }}" class="inline" autocomplete="off">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="akcja" value="haslo">
+          <input type="password" name="haslo" autocomplete="new-password" minlength="{{ haslo_min }}" placeholder="min. {{ haslo_min }} znaków" aria-label="Nowe hasło dla {{ z.login }}" required>
+          <button class="btn btn-ghost btn-sm" type="submit">Ustaw</button>
+        </form>
+        {% else %}<a href="{{ url_for('zarzadca.konto') }}">Moje konto →</a>{% endif %}
+      </td>
+      <td data-label="">
+        {% if z.id != user.id %}
+        <form method="post" action="{{ url_for('zarzadca.zarzadca_zmiana', zid=z.id) }}" class="inline"
+              {% if z.aktywny %}onsubmit="return confirm('Zablokować konto {{ z.login }}?')"{% endif %}>
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="akcja" value="{{ 'zablokuj' if z.aktywny else 'odblokuj' }}">
+          <button class="linkbtn{% if z.aktywny %} danger{% endif %}" type="submit">{{ 'Zablokuj' if z.aktywny else 'Odblokuj' }}</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endblock %}

@@ -68,6 +68,36 @@ document.getElementById("form-odczyt").addEventListener("submit", async function
 {% endif %}
 
 {% for d in dane %}
+{% if d.info %}
+<section class="panel-box">
+  <h2>{{ d.l.nazwa }} — koszty mediów (informacyjnie)</h2>
+  <p class="muted small">Ten lokal nie dostaje zawiadomień o płatności. Poniżej udział lokalu w fakturach za wodę i ciepło,
+    wyliczony z liczników tak samo jak dla pozostałych lokali, oraz faktury budynku od MWiO i OPEC.</p>
+  {% if d.info.udzial %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Zużycie za</th><th>Pozycje</th><th class="num">Razem</th></tr></thead>
+    <tbody>{% for m in d.info.udzial %}
+      <tr><td data-label="Zużycie za"><strong>{{ m.okres|okres }}</strong></td>
+        <td data-label="Pozycje">{% for t, sp, kw in m.pozycje %}<span class="line small">{{ t }}{% if sp %} <span class="muted">({{ sp }})</span>{% endif %} — {{ kw|zl }}</span>{% endfor %}</td>
+        <td data-label="Razem" class="num"><strong>{{ m.suma|zl }}</strong></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">Brak pełnych odczytów do wyliczenia udziału.</p>{% endif %}
+  {% if d.info.faktury %}
+  <h3>Faktury budynku</h3>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Za miesiąc</th><th>Dostawca</th><th>Numer</th><th class="num">Zużycie</th><th class="num">Kwota brutto</th></tr></thead>
+    <tbody>{% for f in d.info.faktury %}
+      <tr><td data-label="Za miesiąc">{{ f.okres|okres }}</td>
+        <td data-label="Dostawca">{{ 'MWiO — woda i ścieki' if f.rodzaj == 'woda' else 'OPEC — ciepło' }}</td>
+        <td data-label="Numer">{{ f.numer }}</td>
+        <td data-label="Zużycie" class="num">{{ f.zuzycie|liczba(3 if f.rodzaj == 'cieplo' else 2) }} {{ 'GJ' if f.rodzaj == 'cieplo' else 'm³' }}</td>
+        <td data-label="Kwota brutto" class="num">{{ f.kwota|zl }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+</section>
+{% endif %}
 <section class="panel-box">
   <h2>{{ d.l.nazwa }}</h2>
   {% if d.l.nr_wodomierza or d.l.nr_cieplomierza %}

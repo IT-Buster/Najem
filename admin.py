@@ -27,6 +27,7 @@ ADMIN_MENU = [
     ("podatek", "Podatek"),
     ("wydatki", "Wydatki"),
     ("ustawienia", "Ustawienia"),
+    ("zarzadcy", "Zarządcy"),
     ("konto", "Moje konto"),
 ]
 RODZAJE_LOKALI = ["mieszkanie", "kawalerka", "pokój", "dom", "lokal użytkowy", "garaż / miejsce postojowe"]
@@ -360,13 +361,14 @@ def _umowa_form(f, uid=None):
         f.error("rozwiazana_dnia", "Data rozwiązania nie może być przed początkiem najmu.")
     if rozw and do and rozw > do:
         f.error("rozwiazana_dnia", "Data rozwiązania nie może być po końcu umowy.")
-    f.money("czynsz", "Czynsz", positive=True)
+    f.money("czynsz", "Czynsz", positive=f.raw.get("tylko_informacja") != "1")   # umowa informacyjna: czynsz może być 0
     f.money("oplaty", "Opłaty", required=False)
     f.money("kaucja", "Kaucja", required=False)
     f.number("dzien_platnosci", "Dzień płatności", 1, 31, required=True)
     f.number("liczba_osob", "Liczba osób", 1, 20, required=True)
     f.text("wypowiedzenie", "Okres wypowiedzenia", max_len=100)
     f.text("uwagi", "Uwagi", max_len=4000)
+    f.clean["tylko_informacja"] = 1 if f.raw.get("tylko_informacja") == "1" else 0
     # jeden lokal nie może mieć dwóch umów w tym samym czasie
     if f.ok:
         nowy_koniec = rozw or do or "9999-12-31"

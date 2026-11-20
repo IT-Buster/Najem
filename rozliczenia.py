@@ -476,9 +476,10 @@ def rozliczenia():
     for u in umowy_w_okresie(okres):
         n = db.execute("SELECT * FROM naliczenia WHERE umowa_id=? AND okres_czynsz=?", (u["id"], okres)).fetchone()
         b = budynek_lokalu(u["lokal_id"])
-        wiersze.append({"u": u, "n": n, "r": None if n else oblicz(u, okres), "b": b["nazwa"] if b else None})
+        wiersze.append({"u": u, "n": n, "r": None if n else oblicz(u, okres), "b": b["nazwa"] if b else None,
+                        "info": bool(u["tylko_informacja"])})
     wiersze.sort(key=lambda w: (w["b"] is None, w["b"] or "", w["u"]["lokal_nazwa"]))
-    do_wystawienia = sum(1 for w in wiersze if not w["n"])
+    do_wystawienia = sum(1 for w in wiersze if not w["n"] and not w["info"])
     return render_template("admin/rozliczenia.html", active="rozliczenia", okres=okres,
                            wiersze=wiersze, do_wystawienia=do_wystawienia)
 
@@ -490,7 +491,7 @@ def rozliczenia_wystaw():
     db = get_db()
     nowe = 0
     for u in umowy_w_okresie(okres):
-        if uid and u["id"] != uid:
+        if (uid and u["id"] != uid) or u["tylko_informacja"]:
             continue
         if db.execute("SELECT 1 FROM naliczenia WHERE umowa_id=? AND okres_czynsz=?", (u["id"], okres)).fetchone():
             continue
@@ -498,6 +499,9 @@ def rozliczenia_wystaw():
         nowe += 1
     db.commit()
     flash(f"Wystawiono zawiadomienia: {nowe}." if nowe else "Nie było nic do wystawienia.", "ok")
+    if nowe and not uid:                     # pojedyncze wystawienie bez e-maila, całość — z e-mailem
+        from kreator import powiadom_zawiadomienia
+        powiadom_zawiadomienia(okres)
     return redirect(url_for(".rozliczenia", okres=okres))
 
 
@@ -777,6 +781,8 @@ def faktury():
             _insert("faktury", f.clean)
             get_db().commit()
             flash(f"Dodano fakturę {f.clean['numer']}.", "ok")
+            from kreator import powiadom_faktura
+            powiadom_faktura(f.clean)
             return redirect(url_for(".faktury"))
         return render_template("admin/faktury.html", f=f, fv=None, rows=_faktury_lista(),
                                otworz=True, **_faktury_ctx()), 422
@@ -1052,5 +1058,25 @@ def media():
             z = zuzycie(l["id"], za)
             wym = [NAZWA_LICZNIKA[k] for k in ("cieplo", "woda") if wymiana(l["id"], k, za)]
             hist.append({"o": o, "z": z, "za": za, "wym": wym})
-        dane.append({"l": l, "hist": hist[:24]})
+        info = None
+        if db.execute("SELECT 1 FROM umowy WHERE lokal_id=? AND najemca_id=? AND tylko_informacja=1",
+                      (l["id"], g.user["id"])).fetchone():
+            info = media_informacyjnie(l)
+        dane.append({"l": l, "hist": hist[:24], "info": info})
     return render_template("media.html", active="media", dane=dane)
+
+
+def media_informacyjnie(l, miesiecy=12):
+    """Dla umów „tylko informacja”: udział lokalu w kosztach wody i ciepła oraz faktury budynku (bez płatności)."""
+    db = get_db()
+    udzial = []
+    om = poprzedni(biezacy())
+    for _ in range(miesiecy):
+        if odczyt(l["id"], nastepny(om)) is not None:
+            poz, _uw = media_lokalu(l, om)
+            if poz:
+                udzial.append({"okres": om, "pozycje": poz, "suma": sum(p[2] for p in poz)})
+        om = poprzedni(om)
+    faktury = db.execute("SELECT * FROM faktury WHERE budynek_id=? ORDER BY okres DESC, rodzaj DESC LIMIT ?",
+                         (l["budynek_id"], miesiecy * 2)).fetchall() if l["budynek_id"] else []
+    return {"udzial": udzial, "faktury": faktury}

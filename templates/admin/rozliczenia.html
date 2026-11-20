@@ -41,6 +41,9 @@
           <span class="badge badge-aktywna">Wystawione</span>
           <span class="muted small">{{ w.n.data_wystawienia|data }}</span><br>
           <a href="{{ url_for('zarzadca.rozliczenie', nid=w.n.id) }}">Zobacz</a>
+        {% elif w.info %}
+          <span class="badge badge-zakonczona">Tylko informacja</span><br>
+          <a href="{{ url_for('zarzadca.rozliczenie_podglad', uid=u.id, okres=okres) }}">Podgląd</a>
         {% else %}
           <span class="badge badge-przyszla">Do wystawienia</span>
           {% if w.r.uwagi %}<span class="badge badge-konczy" title="{{ w.r.uwagi|join(' ') }}">{{ w.r.uwagi|length }} uwag{{ 'a' if w.r.uwagi|length == 1 else 'i' }}</span>{% endif %}<br>

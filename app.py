@@ -337,6 +337,8 @@ def init_db():
         for table, col, ddl in [("lokale", "nr_wodomierza", "TEXT"),
                                 ("lokale", "nr_cieplomierza", "TEXT"),
                                 ("umowy", "liczba_osob", "INTEGER NOT NULL DEFAULT 1"),
+                                # 1 = bez zawiadomień (np. mieszkanie zarządcy): najemca widzi tylko zużycie i faktury
+                                ("umowy", "tylko_informacja", "INTEGER NOT NULL DEFAULT 0"),
                                 ("lokale", "budynek_id", "INTEGER REFERENCES budynki(id)"),
                                 ("faktury", "budynek_id", "INTEGER REFERENCES budynki(id)"),
                                 ("odczyty", "zrodlo", "TEXT"),          # NULL = wpisany ręcznie, 'pomiar' = z pomiarów
@@ -761,6 +763,7 @@ import pomiary  # noqa: E402,F401
 import wiadomosci  # noqa: E402,F401
 import konto  # noqa: E402,F401
 import kreator  # noqa: E402,F401
+import zarzadcy  # noqa: E402,F401
 app.register_blueprint(admin_bp)
 
 if __name__ == "__main__":

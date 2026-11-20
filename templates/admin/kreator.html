@@ -128,6 +128,9 @@
       <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>
       — wymaga włączonej weryfikacji dwuetapowej. Aplikacja tylko czyta e-maile od faktury@mwio.pl i bok@opec.pl.
       Hasło jest zapisane na serwerze w katalogu danych (nie w bazie i nie w kopii zapasowej).</p>
+    <p class="muted small">Powiadomienia e-mail o nowej fakturze i wystawionych zawiadomieniach wysyłane są z tej skrzynki
+      do zarządców z adresem e-mail ({{ odbiorcy|join(', ') if odbiorcy else 'nikt nie ma wpisanego adresu' }}) —
+      <a href="{{ url_for('zarzadca.zarzadcy') }}">Zarządcy</a>.</p>
     <form method="post" action="{{ url_for('zarzadca.kreator_gmail_ustawienia', b=b.id, okres=okres) }}" class="form" autocomplete="off">
       {{ csrf() }}
       <div class="form-grid">
@@ -155,10 +158,15 @@
   <div class="table-wrap"><table class="table">
     <thead><tr><th>Lokal</th><th class="num">Do zapłaty</th><th>Stan</th></tr></thead>
     <tbody>{% for p in podglad %}
-      <tr><td data-label="Lokal">{% if not p.n %}<label class="kr-wybor"><input type="checkbox" name="umowa" value="{{ p.u.id }}" {% if p.domyslnie %}checked{% endif %}> {% endif %}<strong>{{ p.u.lokal_nazwa }}</strong>{% if not p.n %}</label>{% endif %}<br><span class="muted small">{{ p.u.najemca_nazwa or p.u.najemca_login }}{% if not p.n and not p.domyslnie %} · bez czynszu i bez wcześniejszych zawiadomień{% endif %}</span></td>
+      {% set info = p.u.tylko_informacja %}
+      <tr><td data-label="Lokal">{% if not p.n and not info %}<label class="kr-wybor"><input type="checkbox" name="umowa" value="{{ p.u.id }}" {% if p.domyslnie %}checked{% endif %}> {% endif %}<strong>{{ p.u.lokal_nazwa }}</strong>{% if not p.n and not info %}</label>{% endif %}<br><span class="muted small">{{ p.u.najemca_nazwa or p.u.najemca_login }}{% if info %} · tylko informacja — bez zawiadomienia{% elif not p.n and not p.domyslnie %} · bez czynszu i bez wcześniejszych zawiadomień{% endif %}</span></td>
         {% if p.n %}
         <td data-label="Do zapłaty" class="num">{{ p.n.do_zaplaty|zl }}</td>
         <td data-label="Stan"><a href="{{ url_for('zarzadca.rozliczenie', nid=p.n.id) }}">wystawione ✓</a></td>
+        {% elif info %}
+        <td data-label="Do zapłaty" class="num muted">—</td>
+        <td data-label="Stan"><span class="badge badge-zakonczona">informacja</span>
+          <a href="{{ url_for('zarzadca.rozliczenie_podglad', uid=p.u.id, okres=okres) }}">podgląd</a></td>
         {% else %}
         <td data-label="Do zapłaty" class="num">{{ p.r.do_zaplaty|zl }}</td>
         <td data-label="Stan"><a href="{{ url_for('zarzadca.rozliczenie_podglad', uid=p.u.id, okres=okres) }}">podgląd</a>
