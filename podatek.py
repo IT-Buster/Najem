@@ -1,7 +1,9 @@
 """Podatek od najmu prywatnego (ryczałt od przychodów ewidencjonowanych) i rejestr wydatków.
 
-Przychód miesiąca = czynsz z zawiadomień za ten miesiąc (okres czynszu) — jak w arkuszu
-(zakładki PIT / „Przychód do podatku”). Media rozliczane wg zużycia nie są przychodem;
+Przychód (od 2026, KASOWO_OD) = czynsz faktycznie wpłacony: wpłaty z zakładki Wpłaty rozdzielane są na
+zawiadomienia od najstarszego, w zawiadomieniu najpierw na czynsz. Przychód trafia do miesiąca wpłaty
+(przedpłata — do miesiąca, za który jest czynsz). Niezapłacony czynsz nie jest przychodem.
+Lata wcześniejsze: czynsz z zawiadomień za dany miesiąc — jak w arkuszu (już rozliczone). Media rozliczane wg zużycia nie są przychodem;
 ryczałt za opłaty z umowy (pole „Opłaty”) można wliczać w Ustawieniach.
 
 Podatek: stawka podstawowa (8,5%) do progu rocznego przychodu (100 000 zł), powyżej — stawka
@@ -39,8 +41,51 @@ def do_zl(gr):
     return int((Decimal(gr) / 100).quantize(Decimal(1), ROUND_HALF_UP)) * 100
 
 
-def przychody(rok, p):
-    """{okres: {lokal_id: grosze}} z pozycji czynszu (i ryczałtu za opłaty) wystawionych zawiadomień."""
+def _przydzial(p):
+    """Rozdział wpłat na zawiadomienia każdej umowy — od najstarszego (FIFO), w zawiadomieniu najpierw czynsz.
+
+    Zwraca (zaplacone, zalegle): zaplacone = [(miesiąc przychodu, lokal_id, grosze)], gdzie miesiąc przychodu to
+    miesiąc wpłaty, ale nie wcześniejszy niż miesiąc czynszu (przedpłata = przychód miesiąca, za który jest);
+    zalegle = [(okres czynszu, lokal_id, grosze)] — czynsz jeszcze niezapłacony."""
+    db = get_db()
+    warunek = "p.tytul LIKE 'Czynsz%'" + (" OR p.tytul LIKE 'Opłaty eksploatacyjne%'" if p["ryczalt"] else "")
+    nal = {}
+    for r in db.execute(f"""
+            SELECT n.umowa_id, u.lokal_id, n.okres_czynsz AS okres, n.suma_pozycji AS suma,
+                   coalesce((SELECT sum(p.kwota) FROM naliczenia_pozycje p WHERE p.naliczenie_id=n.id AND ({warunek})), 0) AS czynsz
+            FROM naliczenia n JOIN umowy u ON u.id=n.umowa_id ORDER BY n.umowa_id, n.okres_czynsz"""):
+        nal.setdefault(r["umowa_id"], []).append(r)
+    wpl = {}
+    for r in db.execute("SELECT umowa_id, data, kwota FROM wplaty ORDER BY umowa_id, data, id"):
+        wpl.setdefault(r["umowa_id"], []).append(r)
+    zaplacone, zalegle = [], []
+    for uid, lista in nal.items():
+        odcinki, c = [], 0          # czynsz zawiadomienia zajmuje odcinek [c, c+czynsz) skumulowanych należności
+        for n in lista:
+            cz = max(0, min(n["czynsz"], n["suma"]) if n["suma"] > 0 else 0)
+            odcinki.append([c, c + cz, n, 0])
+            c += n["suma"]
+        P = 0
+        for w in wpl.get(uid, []):
+            P2 = P + w["kwota"]
+            for o in odcinki:
+                a, b, n, _ = o
+                przyrost = max(0, min(P2, b) - max(P, a))
+                if przyrost > 0:
+                    zaplacone.append((max(n["okres"], w["data"][:7]), n["lokal_id"], przyrost))
+                    o[3] += przyrost
+            P = P2
+        for a, b, n, zapl in odcinki:
+            if b - a - zapl > 0:
+                zalegle.append((n["okres"], n["lokal_id"], b - a - zapl))
+    return zaplacone, zalegle
+
+
+KASOWO_OD = 2026   # od tego roku przychód = czynsz wpłacony; lata wcześniejsze (już rozliczone) — jak w arkuszu
+
+
+def _przychody_wystawione(rok, p):
+    """Dawny sposób (lata przed KASOWO_OD): czynsz z zawiadomień za dany miesiąc, bez względu na wpłatę."""
     warunek = "p.tytul LIKE 'Czynsz%'" + (" OR p.tytul LIKE 'Opłaty eksploatacyjne%'" if p["ryczalt"] else "")
     out = {}
     for r in get_db().execute(f"""
@@ -50,6 +95,25 @@ def przychody(rok, p):
             GROUP BY n.okres_czynsz, u.lokal_id""", (f"{rok}-%",)):
         out.setdefault(r["okres"], {})[r["lokal_id"]] = r["kwota"]
     return out
+
+
+def przychody(rok, p):
+    """{miesiąc: {lokal_id: grosze}} — czynsz (i ryczałt za opłaty) faktycznie wpłacony; zob. _przydzial."""
+    if rok < KASOWO_OD:
+        return _przychody_wystawione(rok, p)
+    out = {}
+    for okres, lid, kw in _przydzial(p)[0]:
+        if okres.startswith(f"{rok}-"):
+            d = out.setdefault(okres, {})
+            d[lid] = d.get(lid, 0) + kw
+    return out
+
+
+def zalegly_czynsz(rok, p):
+    """[(okres, lokal_id, grosze)] czynszu za miesiące roku, którego najemca jeszcze nie zapłacił."""
+    if rok < KASOWO_OD:
+        return []
+    return sorted(z for z in _przydzial(p)[1] if z[0].startswith(f"{rok}-"))
 
 
 def zestawienie(rok):
@@ -87,11 +151,14 @@ def zestawienie(rok):
             lokale[lid] = lokale.get(lid, 0) + kw
     nazwy = {r["id"]: r["nazwa"] for r in db.execute("SELECT id, nazwa FROM lokale")}
     wg_lokali = sorted(((nazwy.get(lid, f"lokal {lid}"), kw) for lid, kw in lokale.items()), key=lambda x: x[0])
+    zalegle = [{"okres": o, "nazwa": MIESIACE_M[int(o[5:7]) - 1], "lokal": nazwy.get(lid, f"lokal {lid}"), "kwota": kw}
+               for o, lid, kw in zalegly_czynsz(rok, p)]
     wydatki = db.execute("SELECT coalesce(sum(kwota),0) FROM wydatki WHERE data LIKE ?", (f"{rok}-%",)).fetchone()[0]
     suma = {"przychod": narast, "podatek": zaliczki, "wplacono": sum(m["wplacono"] for m in miesiace),
             "wydatki": wydatki}
     suma["wynik"] = suma["przychod"] - suma["podatek"] - wydatki
-    return {"miesiace": miesiace, "wg_lokali": wg_lokali, "suma": suma, "p": p}
+    return {"miesiace": miesiace, "wg_lokali": wg_lokali, "suma": suma, "p": p, "zalegle": zalegle,
+            "kasowo": rok >= KASOWO_OD}
 
 
 def _rok():

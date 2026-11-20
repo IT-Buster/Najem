@@ -15,11 +15,27 @@
 </form>
 
 <div class="stats">
-  <div class="stat"><span>Przychód {{ rok }}</span><strong>{{ suma.przychod|zl }}</strong><small class="muted">czynsz{{ ' + ryczałt za opłaty' if p.ryczalt }}</small></div>
+  <div class="stat"><span>Przychód {{ rok }}</span><strong>{{ suma.przychod|zl }}</strong><small class="muted">{{ 'czynsz wpłacony' if kasowo else 'czynsz' }}{{ ' + ryczałt za opłaty' if p.ryczalt }}</small></div>
   <div class="stat"><span>Podatek należny</span><strong>{{ suma.podatek|zl }}</strong><small class="muted">wpłacono {{ suma.wplacono|zl }}</small></div>
   <div class="stat"><span>Wydatki</span><strong>{{ suma.wydatki|zl }}</strong><small class="muted"><a href="{{ url_for('zarzadca.wydatki', rok=rok) }}">rejestr wydatków</a></small></div>
   <div class="stat stat-accent"><span>Wynik roku</span><strong>{{ suma.wynik|zl }}</strong><small class="muted">przychód − podatek − wydatki</small></div>
 </div>
+
+{% if zalegle %}
+<section class="panel-box">
+  <h2>Czynsz niezapłacony — nie wliczony do przychodu</h2>
+  <p class="muted small">Wejdzie do przychodu w miesiącu, w którym potwierdzisz wpłatę w zakładce
+    <a href="{{ url_for('zarzadca.wplaty') }}">Wpłaty</a>.</p>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Miesiąc</th><th>Lokal</th><th class="num">Niezapłacony czynsz</th></tr></thead>
+    <tbody>{% for z in zalegle %}
+      <tr><td data-label="Miesiąc">{{ z.nazwa|capitalize }}</td><td data-label="Lokal">{{ z.lokal }}</td>
+          <td data-label="Niezapłacony czynsz" class="num"><span class="neg">{{ z.kwota|zl }}</span></td></tr>
+    {% endfor %}</tbody>
+    {% if zalegle|length > 1 %}<tfoot><tr><th colspan="2">Razem</th><td class="num"><strong>{{ (zalegle|sum(attribute='kwota'))|zl }}</strong></td></tr></tfoot>{% endif %}
+  </table></div>
+</section>
+{% endif %}
 
 <div class="table-wrap"><table class="table">
   <thead><tr><th>Miesiąc</th><th class="num">Przychód</th><th class="num">Narastająco</th><th class="num">Podatek</th><th>Wpłata do US</th></tr></thead>
@@ -67,5 +83,5 @@
 </section>
 {% endif %}
 
-<p class="muted small">Przychód miesiąca to czynsz z wystawionych zawiadomień za ten miesiąc{{ ' oraz ryczałt za opłaty z umów' if p.ryczalt }}; media rozliczane według zużycia nie są przychodem. Podatek za miesiąc = podatek od przychodu narastająco od początku roku minus podatek za wcześniejsze miesiące, zaokrąglony do pełnych złotych; płatny do 20. dnia następnego miesiąca (za grudzień — do 20 stycznia). Zestawienie jest pomocnicze — sprawdź je przed złożeniem PIT-28.</p>
+<p class="muted small">{% if kasowo %}Przychód miesiąca to czynsz{{ ' i ryczałt za opłaty z umów' if p.ryczalt }} faktycznie wpłacony — według wpłat potwierdzonych w zakładce Wpłaty (wpłata pokrywa najpierw najstarsze zawiadomienia, w zawiadomieniu najpierw czynsz); trafia do miesiąca wpłaty, a przedpłata — do miesiąca, za który jest czynsz. Niezapłacony czynsz nie jest przychodem.{% else %}Przychód miesiąca to czynsz z wystawionych zawiadomień za ten miesiąc{{ ' oraz ryczałt za opłaty z umów' if p.ryczalt }}.{% endif %} media rozliczane według zużycia nie są przychodem. Podatek za miesiąc = podatek od przychodu narastająco od początku roku minus podatek za wcześniejsze miesiące, zaokrąglony do pełnych złotych; płatny do 20. dnia następnego miesiąca (za grudzień — do 20 stycznia). Zestawienie jest pomocnicze — sprawdź je przed złożeniem PIT-28.</p>
 {% endblock %}
