@@ -1,0 +1,193 @@
+{% extends "admin/base.html" %}
+{% from "admin/_form.html" import csrf %}
+{% block title %}Kreator zawiadomień{% endblock %}
+{% block content %}
+{% macro liczba(v) %}{{ ('%g'|format(v)).replace('.', ',') if v is not none else '—' }}{% endmacro %}
+<div class="page-head">
+  <div><h1>Kreator zawiadomień</h1>
+    {% if b %}<p class="muted">Zawiadomienia za <strong>{{ okres|okres }}</strong> · media za {{ om|okres }} · {{ b.nazwa }}</p>{% endif %}</div>
+</div>
+
+{% if not b %}
+<div class="placeholder"><strong>Brak budynków</strong><span>Dodaj budynek w zakładce Budynki.</span></div>
+{% else %}
+<form class="toolbar" method="get">
+  {% if budynki|length > 1 %}
+  <select name="b" aria-label="Budynek" onchange="this.form.submit()">
+    {% for x in budynki %}<option value="{{ x.id }}" {% if x.id == b.id %}selected{% endif %}>{{ x.nazwa }}</option>{% endfor %}
+  </select>{% else %}<input type="hidden" name="b" value="{{ b.id }}">{% endif %}
+  <input type="month" name="okres" value="{{ okres }}" aria-label="Miesiąc zawiadomień" onchange="this.form.submit()">
+</form>
+
+<ol class="kr-steps">
+  <li class="{{ 'done' if krok1 else 'now' }}"><a href="#liczniki">1. Liczniki</a></li>
+  <li class="{{ 'done' if krok2 else ('now' if krok1 else '') }}"><a href="#faktury">2. Faktury</a></li>
+  <li class="{{ 'done' if krok1 and krok2 and not do_wystawienia and podglad else ('now' if krok1 and krok2 else '') }}"><a href="#wystaw">3. Zawiadomienia</a></li>
+</ol>
+
+{# ---------- 1. liczniki ---------- #}
+<section class="panel-box" id="liczniki">
+  <h2>1. Zdjęcia i stany liczników <span class="muted small">— stan na {{ (okres ~ '-01')|data }}</span></h2>
+  {% if bez_licznikow %}
+  <p class="muted">Budynek nie ma liczników — ten krok jest pominięty.</p>
+  {% else %}
+  <p class="muted small">Odczyty z telemetrii i zatwierdzone odczyty najemców pojawiają się tu same. Dla brakujących zrób zdjęcie licznika, wpisz stan i zapisz — kreator przejdzie do następnego.</p>
+  <ul class="kr-list">
+  {% for x in liczniki %}
+    <li class="kr-licznik{% if x.stan is not none %} ok{% endif %}" id="l-{{ x.klucz }}">
+      <form method="post" action="{{ url_for('zarzadca.kreator_licznik', b=b.id, okres=okres) }}" enctype="multipart/form-data" data-zdjecia autocomplete="off">
+        {{ csrf() }}<input type="hidden" name="lid" value="{{ x.lid }}"><input type="hidden" name="rodzaj" value="{{ x.rodzaj }}">
+        <div class="kr-who">
+          <strong>{{ x.nazwa }}</strong>
+          <span class="muted small">{{ nazwa_licznika[x.rodzaj]|capitalize }}{% if x.nr %} nr {{ x.nr }}{% endif %} · poprzednio {{ liczba(x.poprz) }} {{ jedn[x.rodzaj] }}</span>
+          {% if x.stan is not none %}
+          <span class="small">✓ {{ liczba(x.stan) }} {{ jedn[x.rodzaj] }}{% if x.zuzycie is not none %} · zużycie <strong class="{{ 'neg' if x.zuzycie < 0 }}">{{ liczba(x.zuzycie) }} {{ jedn[x.rodzaj] }}</strong>{% endif %}
+            {% if x.zdjecie %} · <a href="{{ url_for('zdjecie', pid=x.zdjecie.id) }}" target="_blank">zdjęcie</a>{% endif %}</span>
+          {% if x.zrodlo %}<span class="muted small">źródło: {{ x.zrodlo }}</span>{% endif %}
+          {% endif %}
+          {% if x.oczekuje %}<span class="small"><a href="{{ url_for('zarzadca.pomiary', b=b.id) }}">{{ x.oczekuje }} odczyt{{ '' if x.oczekuje == 1 else 'y' }} najemcy czeka na zatwierdzenie →</a></span>{% endif %}
+        </div>
+        <label class="kr-foto btn btn-ghost btn-sm"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> <span>{{ 'Nowe zdjęcie' if x.zdjecie else 'Zdjęcie' }}</span>
+          <input type="file" name="zdjecia" accept="image/*" capture="environment" data-max="1"></label>
+        <label class="kr-stan"><span class="sr-only">Stan ({{ jedn[x.rodzaj] }})</span>
+          <input name="stan" inputmode="decimal" placeholder="stan" value="{{ liczba(x.stan) if x.stan is not none else '' }}" required><span>{{ jedn[x.rodzaj] }}</span></label>
+        <button class="btn btn-sm {{ 'btn-ghost' if x.stan is not none else 'btn-primary' }}" type="submit">{{ 'Popraw' if x.stan is not none else 'Zapisz' }}</button>
+      </form>
+    </li>
+  {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+{# ---------- 2. faktury ---------- #}
+<section class="panel-box" id="faktury">
+  <h2>2. Faktury za {{ om|okres }}</h2>
+  <ul class="kr-fv">
+  {% for k in potrzebne %}
+    {% set f = faktury.get(k) %}
+    <li class="{{ 'ok' if f }}">
+      <strong>{{ 'Woda — MWiO' if k == 'woda' else 'Ciepło — OPEC' }}</strong>
+      {% if f %}<span>✓ {{ f.numer }} · {{ f.kwota|zl }} · {{ liczba(f.zuzycie) }} {{ jedn[k] }}
+        · <a href="{{ url_for('zarzadca.faktura_edycja', fid=f.id) }}">popraw</a></span>
+      {% else %}<span class="muted">brak</span>{% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+
+  {% if not krok2 %}
+    {% if gmail_login %}
+    <form method="post" action="{{ url_for('zarzadca.kreator_gmail', b=b.id, okres=okres) }}" class="kr-gmail-btn">
+      {{ csrf() }}<button class="btn btn-primary" type="submit">✉ Sprawdź skrzynkę Gmail</button>
+      <span class="muted small">{{ gmail_login }} · e-maile MWiO i OPEC od {{ (om ~ '-01')|data }}</span>
+    </form>
+    {% else %}
+    <p class="muted small">Połącz skrzynkę Gmail (niżej), a kreator sam znajdzie faktury MWiO i OPEC.
+      Fakturę możesz też dodać ręcznie w zakładce <a href="{{ url_for('zarzadca.faktury') }}">Faktury mediów</a>.</p>
+    {% endif %}
+  {% endif %}
+
+  {% if sprawdzono %}
+    {% set dopasowane = maile|selectattr('okres', 'equalto', om)|list %}
+    {% for m in dopasowane %}
+    <div class="kr-mail{% if m.jest %} jest{% endif %}">
+      <div><strong>{{ m.dostawca }} · {{ m.numer }}</strong> <span class="muted small">e-mail z {{ m.data|data }}</span><br>
+        {{ m.kwota|zl }} brutto · za {{ m.okres|okres }}</div>
+      {% if m.jest %}<span class="badge badge-aktywna">już w bazie</span>
+      {% else %}
+      <form method="post" action="{{ url_for('zarzadca.kreator_faktura', okres=okres) }}" class="kr-mail-form" autocomplete="off">
+        {{ csrf() }}
+        {% for n in ('budynek_id', 'rodzaj', 'numer', 'okres', 'data', 'uwagi') %}<input type="hidden" name="{{ n }}" value="{{ m.form[n] }}">{% endfor %}
+        <label class="field">Kwota brutto (zł)<input name="kwota" value="{{ m.form.kwota }}" inputmode="decimal" required></label>
+        <label class="field">Zużycie ({{ jedn[m.rodzaj] }})<input name="zuzycie" value="{{ m.form.zuzycie }}" inputmode="decimal" required>
+          <span class="hint">{{ 'z licznika głównego' if m.form.zuzycie_z_licznika else 'brak odczytu głównego — wpisz z faktury' }}</span></label>
+        {% if m.rodzaj == 'cieplo' %}
+        <label class="field">Opłaty stałe (zł)<input name="oplata_stala" value="{{ m.form.oplata_stala }}" inputmode="decimal">
+          <span class="hint">{{ 'jak w ' ~ m.form.oplata_z if m.form.oplata_z else 'przesyłowa + moc' }}</span></label>
+        <input type="hidden" name="odliczenie" value="0">
+        {% else %}
+        <label class="field">Odliczenie (zł)<input name="odliczenie" value="{{ m.form.odliczenie }}" inputmode="decimal">
+          <span class="hint">woda ogrodowa — płaci właściciel</span></label>
+        <input type="hidden" name="oplata_stala" value="0">
+        {% endif %}
+        <button class="btn btn-primary btn-sm" type="submit">Dodaj fakturę</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="muted">W skrzynce nie ma jeszcze faktur za {{ om|okres }}{% if maile %} (znalezione dotyczą innych miesięcy){% endif %}.
+      Dostawcy wysyłają je zwykle w pierwszych dniach następnego miesiąca.</p>
+    {% endfor %}
+    {% set inne = maile|rejectattr('okres', 'equalto', om)|list %}
+    {% if inne %}<details class="small"><summary class="muted">Inne znalezione faktury ({{ inne|length }})</summary>
+      <ul>{% for m in inne %}<li>{{ m.dostawca }} {{ m.numer }} · {{ m.kwota|zl }} · za {{ m.okres|okres }}{% if m.jest %} · w bazie{% endif %}</li>{% endfor %}</ul></details>{% endif %}
+  {% endif %}
+
+  <details class="kr-gmail-ust" id="gmail" {% if not gmail_login %}open{% endif %}>
+    <summary class="small">{{ 'Skrzynka Gmail: ' ~ gmail_login if gmail_login else 'Połącz skrzynkę Gmail' }}</summary>
+    <p class="muted small">Potrzebne jest <strong>hasło do aplikacji</strong> Google (nie zwykłe hasło):
+      <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>
+      — wymaga włączonej weryfikacji dwuetapowej. Aplikacja tylko czyta e-maile od faktury@mwio.pl i bok@opec.pl.
+      Hasło jest zapisane na serwerze w katalogu danych (nie w bazie i nie w kopii zapasowej).</p>
+    <form method="post" action="{{ url_for('zarzadca.kreator_gmail_ustawienia', b=b.id, okres=okres) }}" class="form" autocomplete="off">
+      {{ csrf() }}
+      <div class="form-grid">
+        <label class="field">Adres Gmail<input type="email" name="login" value="{{ gmail_login or '' }}" autocomplete="off" required></label>
+        <label class="field">Hasło do aplikacji<input type="password" name="haslo" autocomplete="new-password" placeholder="xxxx xxxx xxxx xxxx" required></label>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary btn-sm" type="submit">Połącz i sprawdź</button></div>
+    </form>
+    {% if gmail_login %}
+    <form method="post" action="{{ url_for('zarzadca.kreator_gmail_ustawienia', b=b.id, okres=okres) }}" class="inline" onsubmit="return confirm('Odłączyć skrzynkę Gmail?')">
+      {{ csrf() }}<input type="hidden" name="akcja" value="usun"><button class="linkbtn danger small" type="submit">Odłącz skrzynkę</button></form>
+    {% endif %}
+  </details>
+</section>
+
+{# ---------- 3. zawiadomienia ---------- #}
+<section class="panel-box" id="wystaw">
+  <h2>3. Zawiadomienia za {{ okres|okres }}</h2>
+  {% if not podglad %}
+  <p class="muted">W tym budynku nie ma umów obowiązujących w {{ okres|okres }}.</p>
+  {% else %}
+  <form method="post" action="{{ url_for('zarzadca.kreator_wystaw', b=b.id, okres=okres) }}" id="f-wystaw"
+        onsubmit="var n=this.querySelectorAll('[name=umowa]:checked').length; if(!n){alert('Zaznacz co najmniej jedną umowę.');return false;} return confirm('Wystawić zawiadomienia za {{ okres|okres }} (' + n + ')?')">
+  {{ csrf() }}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Lokal</th><th class="num">Do zapłaty</th><th>Stan</th></tr></thead>
+    <tbody>{% for p in podglad %}
+      <tr><td data-label="Lokal">{% if not p.n %}<label class="kr-wybor"><input type="checkbox" name="umowa" value="{{ p.u.id }}" {% if p.domyslnie %}checked{% endif %}> {% endif %}<strong>{{ p.u.lokal_nazwa }}</strong>{% if not p.n %}</label>{% endif %}<br><span class="muted small">{{ p.u.najemca_nazwa or p.u.najemca_login }}{% if not p.n and not p.domyslnie %} · bez czynszu i bez wcześniejszych zawiadomień{% endif %}</span></td>
+        {% if p.n %}
+        <td data-label="Do zapłaty" class="num">{{ p.n.do_zaplaty|zl }}</td>
+        <td data-label="Stan"><a href="{{ url_for('zarzadca.rozliczenie', nid=p.n.id) }}">wystawione ✓</a></td>
+        {% else %}
+        <td data-label="Do zapłaty" class="num">{{ p.r.do_zaplaty|zl }}</td>
+        <td data-label="Stan"><a href="{{ url_for('zarzadca.rozliczenie_podglad', uid=p.u.id, okres=okres) }}">podgląd</a>
+          {% for uw in p.r.uwagi %}<span class="line small neg">{{ uw }}</span>{% endfor %}</td>
+        {% endif %}</tr>
+    {% endfor %}</tbody>
+  </table></div>
+  </form>
+  {% if do_wystawienia %}
+    {% if krok1 and krok2 %}
+    <div class="form-actions"><button class="btn btn-primary" type="submit" form="f-wystaw">Wystaw zaznaczone zawiadomienia</button></div>
+    {% else %}
+    <p class="muted small">Przycisk wystawienia pojawi się, gdy będą stany wszystkich liczników i obie faktury.</p>
+    {% endif %}
+  {% endif %}
+  {% if podglad|selectattr('n')|list %}
+  <p><a class="btn btn-ghost btn-sm" href="{{ url_for('zarzadca.rozliczenia_druk', okres=okres) }}">Drukuj zawiadomienia</a>
+     <a href="{{ url_for('zarzadca.rozliczenia', okres=okres) }}">Rozliczenia →</a></p>
+  {% endif %}
+  {% endif %}
+</section>
+<script src="{{ static_v('zdjecia.js') }}"></script>
+<script>
+document.querySelectorAll('.kr-foto input').forEach(function (inp) {
+  inp.addEventListener('change', function () {
+    var s = inp.parentNode.querySelector('span');
+    if (inp.files.length) { s.textContent = '✓ zdjęcie'; inp.closest('form').querySelector('[name=stan]').focus(); }
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

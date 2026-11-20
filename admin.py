@@ -19,6 +19,7 @@ ADMIN_MENU = [
     ("lokale", "Lokale"),
     ("umowy", "Umowy"),
     ("klienci", "Klienci"),
+    ("kreator", "Kreator zawiadomień"),
     ("rozliczenia", "Rozliczenia"),
     ("liczniki", "Odczyty liczników"),
     ("faktury", "Faktury mediów"),
