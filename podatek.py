@@ -1,7 +1,8 @@
 """Podatek od najmu prywatnego (ryczałt od przychodów ewidencjonowanych) i rejestr wydatków.
 
 Przychód (od 2026, KASOWO_OD) = czynsz faktycznie wpłacony: wpłaty z zakładki Wpłaty rozdzielane są na
-zawiadomienia od najstarszego, w zawiadomieniu najpierw na czynsz. Przychód trafia do miesiąca wpłaty
+zawiadomienia od najstarszego, w zawiadomieniu najpierw na czynsz; nadpłata idzie na media kolejnych
+miesięcy (na czynsz — tylko gdy pokrywa całe zawiadomienie). Przychód trafia do miesiąca wpłaty
 (przedpłata — do miesiąca, za który jest czynsz). Niezapłacony czynsz nie jest przychodem.
 Lata wcześniejsze: czynsz z zawiadomień za dany miesiąc — jak w arkuszu (już rozliczone). Media rozliczane wg zużycia nie są przychodem;
 ryczałt za opłaty z umowy (pole „Opłaty”) można wliczać w Ustawieniach.
@@ -42,11 +43,15 @@ def do_zl(gr):
 
 
 def _przydzial(p):
-    """Rozdział wpłat na zawiadomienia każdej umowy — od najstarszego (FIFO), w zawiadomieniu najpierw czynsz.
+    """Rozdział wpłat umowy na zawiadomienia (czynsz / media), chronologicznie.
 
-    Zwraca (zaplacone, zalegle): zaplacone = [(miesiąc przychodu, lokal_id, grosze)], gdzie miesiąc przychodu to
-    miesiąc wpłaty, ale nie wcześniejszy niż miesiąc czynszu (przedpłata = przychód miesiąca, za który jest);
-    zalegle = [(okres czynszu, lokal_id, grosze)] — czynsz jeszcze niezapłacony."""
+    - Wpłata pokrywa zawiadomienia już wystawione (miesiąc czynszu ≤ miesiąc wpłaty), od najstarszego,
+      w zawiadomieniu najpierw czynsz.
+    - Nadwyżka wpłaty (nadpłata) to zaliczka na media: na kolejnych zawiadomieniach pokrywa media,
+      a czynsz tylko wtedy, gdy starcza na całe zawiadomienie (celowa przedpłata za miesiąc).
+      Pozostała nadpłata dolicza się do następnej wpłaty.
+    Zwraca (zaplacone, zalegle): zaplacone = [(miesiąc przychodu, lokal_id, grosze czynszu)] — miesiąc wpłaty,
+    a przy przedpłacie miesiąc czynszu; zalegle = [(okres czynszu, lokal_id, grosze)] — czynsz niezapłacony."""
     db = get_db()
     warunek = "p.tytul LIKE 'Czynsz%'" + (" OR p.tytul LIKE 'Opłaty eksploatacyjne%'" if p["ryczalt"] else "")
     nal = {}
@@ -60,24 +65,52 @@ def _przydzial(p):
         wpl.setdefault(r["umowa_id"], []).append(r)
     zaplacone, zalegle = [], []
     for uid, lista in nal.items():
-        odcinki, c = [], 0          # czynsz zawiadomienia zajmuje odcinek [c, c+czynsz) skumulowanych należności
-        for n in lista:
-            cz = max(0, min(n["czynsz"], n["suma"]) if n["suma"] > 0 else 0)
-            odcinki.append([c, c + cz, n, 0])
-            c += n["suma"]
-        P = 0
+        otwarte = []        # [zawiadomienie, czynsz do zapłaty, media do zapłaty]
+        nadplata = 0
+        kolejka = list(lista)
+
+        def wystaw(do_miesiaca):
+            nonlocal nadplata
+            while kolejka and kolejka[0]["okres"] <= do_miesiaca:
+                n = kolejka.pop(0)
+                if n["suma"] <= 0:              # korekta na minus = kredyt najemcy, nie przychód
+                    nadplata += -n["suma"]
+                    continue
+                cz = max(0, min(n["czynsz"], n["suma"]))
+                md = n["suma"] - cz
+                if nadplata >= n["suma"]:       # przedpłata za cały miesiąc
+                    if cz:
+                        zaplacone.append((n["okres"], n["lokal_id"], cz))
+                    nadplata -= n["suma"]
+                    continue
+                z = min(nadplata, md)
+                md -= z
+                nadplata -= z
+                otwarte.append([n, cz, md])
+
         for w in wpl.get(uid, []):
-            P2 = P + w["kwota"]
-            for o in odcinki:
-                a, b, n, _ = o
-                przyrost = max(0, min(P2, b) - max(P, a))
-                if przyrost > 0:
-                    zaplacone.append((max(n["okres"], w["data"][:7]), n["lokal_id"], przyrost))
-                    o[3] += przyrost
-            P = P2
-        for a, b, n, zapl in odcinki:
-            if b - a - zapl > 0:
-                zalegle.append((n["okres"], n["lokal_id"], b - a - zapl))
+            m = w["data"][:7]
+            wystaw(m)
+            kw = w["kwota"] + nadplata
+            nadplata = 0
+            for o in otwarte:
+                if kw <= 0:
+                    break
+                n = o[0]
+                z = min(kw, o[1])
+                if z:
+                    zaplacone.append((max(n["okres"], m), n["lokal_id"], z))
+                    o[1] -= z
+                    kw -= z
+                z = min(kw, o[2])
+                o[2] -= z
+                kw -= z
+            otwarte = [o for o in otwarte if o[1] or o[2]]
+            nadplata = kw
+        wystaw("9999-12")
+        for n, cz, _ in otwarte:
+            if cz > 0:
+                zalegle.append((n["okres"], n["lokal_id"], cz))
     return zaplacone, zalegle
 
 
